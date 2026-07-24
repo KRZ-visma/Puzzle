@@ -17,6 +17,11 @@ import { applyUpdate, initPwa } from "./pwa.js";
 
 const game = createGame();
 
+// Stable handle for Playwright / debugging when launched with ?e2e=1
+if (new URLSearchParams(window.location.search).get("e2e") === "1") {
+  window.__PUZZLE__ = game;
+}
+
 bindChrome({
   onShuffle: () => game.newGame(),
   onPlayAgain: () => game.newGame(),

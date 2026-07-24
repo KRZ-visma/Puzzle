@@ -6,6 +6,14 @@
 const VERSION_URL = new URL("../version.json", import.meta.url);
 const CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
+function isE2EMode() {
+  try {
+    return new URLSearchParams(window.location.search).get("e2e") === "1";
+  } catch {
+    return false;
+  }
+}
+
 export async function fetchVersion({ bypassCache = true } = {}) {
   const url = new URL(VERSION_URL.href);
   if (bypassCache) {
@@ -41,7 +49,7 @@ export async function initPwa({
   }
 
   let registration = null;
-  if ("serviceWorker" in navigator) {
+  if ("serviceWorker" in navigator && !isE2EMode()) {
     try {
       registration = await navigator.serviceWorker.register(
         new URL("../sw.js", import.meta.url),

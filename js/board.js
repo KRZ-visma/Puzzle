@@ -15,6 +15,7 @@ export function buildBoard({ cols, rows, total, onPlace, onEmptyClick }) {
     const slot = document.createElement("div");
     slot.className = "slot";
     slot.dataset.slot = String(i);
+    slot.setAttribute("data-testid", `slot-${i}`);
     slot.setAttribute("role", "gridcell");
     slot.setAttribute("aria-label", `Board slot ${i + 1}`);
 

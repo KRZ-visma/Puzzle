@@ -12,6 +12,20 @@ python3 -m http.server 8080
 
 Then visit `http://localhost:8080`.
 
+## Tests
+
+Dev-only tooling (does not affect the static deploy):
+
+```bash
+npm ci
+npx playwright install chromium
+npm test                 # unit + Playwright
+npm run test:unit
+npm run test:e2e
+```
+
+Playwright is the primary suite; unit tests cover pure helpers only. See `AGENTS.md`.
+
 ## GitHub Pages
 
 1. Repo **Settings → Pages**
@@ -33,7 +47,8 @@ On feature branches the version stays `dev` until merge.
 - Shuffle, preview, and win screen
 - Modular `js/` and `css/` layout to keep feature work separated
 - PWA manifest, icons, offline shell, and self-update checks
+- Playwright e2e + small Node unit tests
 
-See `AGENTS.md` for coding-agent conventions (modules, `localStorage`, PWA, conflict reduction).
+See `AGENTS.md` for coding-agent conventions (modules, `localStorage`, PWA, testing, conflict reduction).
 
 Features to define next can build on this foundation.

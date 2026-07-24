@@ -10,6 +10,7 @@ export function createPiece(pieceId, { cols, rows, correct = false, onSelect } =
   piece.type = "button";
   piece.className = "piece";
   piece.dataset.pieceId = String(pieceId);
+  piece.setAttribute("data-testid", `piece-${pieceId}`);
   piece.setAttribute("aria-label", `Puzzle piece ${pieceId + 1}`);
   piece.draggable = !correct;
 

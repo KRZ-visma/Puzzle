@@ -27,6 +27,7 @@ const SHELL = [
   "./js/tray.js",
   "./js/ui.js",
   "./js/game.js",
+  "./js/rules.js",
   "./js/pwa.js",
   "./assets/puzzle.jpg",
   "./assets/icons/icon-192.png",

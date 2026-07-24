@@ -10,10 +10,16 @@ import {
   clearPieceSelection,
   markPieceSelected,
 } from "./ui.js";
+import {
+  countCorrectPlacements,
+  findSlotOfPiece,
+  isCorrectPlacement,
+  isPuzzleComplete,
+} from "./rules.js";
 
 /**
  * Core game state and rules. Prefer editing feature modules (board/tray/pieces/ui)
- * for UI work; keep placement rules here.
+ * for UI work; keep placement orchestration here. Pure rules live in rules.js.
  */
 
 export function createGame() {
@@ -26,29 +32,14 @@ export function createGame() {
     return cols * rows;
   }
 
-  function countCorrect() {
-    let correct = 0;
-    for (const [slotIndex, pieceId] of placements.entries()) {
-      if (slotIndex === pieceId) correct += 1;
-    }
-    return correct;
-  }
-
-  function findSlotOfPiece(pieceId) {
-    for (const [slotIndex, id] of placements.entries()) {
-      if (id === pieceId) return slotIndex;
-    }
-    return null;
-  }
-
   function clearSelection() {
     selectedId = null;
     clearPieceSelection();
   }
 
   function selectPiece(pieceId) {
-    const slotOfPiece = findSlotOfPiece(pieceId);
-    if (slotOfPiece !== null && slotOfPiece === pieceId) {
+    const slotOfPiece = findSlotOfPiece(placements, pieceId);
+    if (slotOfPiece !== null && isCorrectPlacement(pieceId, slotOfPiece)) {
       setStatus("That piece is already in the right spot.");
       return;
     }
@@ -60,7 +51,7 @@ export function createGame() {
   }
 
   function removePieceFromCurrentLocation(pieceId) {
-    const slotIndex = findSlotOfPiece(pieceId);
+    const slotIndex = findSlotOfPiece(placements, pieceId);
     if (slotIndex !== null) {
       placements.delete(slotIndex);
       clearSlot(slotIndex);
@@ -77,11 +68,11 @@ export function createGame() {
 
     removePieceFromCurrentLocation(pieceId);
 
-    const isCorrect = pieceId === slotIndex;
+    const correct = isCorrectPlacement(pieceId, slotIndex);
     renderPieceInSlot(slotIndex, pieceId, {
       cols,
       rows,
-      correct: isCorrect,
+      correct,
       onSelect: selectPiece,
     });
     placements.set(slotIndex, pieceId);
@@ -89,13 +80,13 @@ export function createGame() {
     clearSelection();
     updateProgress(placements.size, totalPieces());
 
-    if (isCorrect) {
+    if (correct) {
       setStatus(`Nice — piece ${pieceId + 1} locked in.`);
     } else {
       setStatus("Placed. Keep going — or move it again if it looks off.");
     }
 
-    if (countCorrect() === totalPieces()) {
+    if (isPuzzleComplete(placements, totalPieces())) {
       setStatus("Puzzle complete!");
       showWin(true);
     }
@@ -139,5 +130,15 @@ export function createGame() {
   return {
     newGame,
     clearSelection,
+    // Test/debug mirrors — not required by the UI.
+    placePiece,
+    getState: () => ({
+      cols,
+      rows,
+      selectedId,
+      placements: new Map(placements),
+      correct: countCorrectPlacements(placements),
+      total: totalPieces(),
+    }),
   };
 }
