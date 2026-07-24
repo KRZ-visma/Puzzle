@@ -1,0 +1,91 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  require-tests:
+    name: Behavior changes need tests
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fail when app behavior changes without test changes
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          if printf '%s' "$PR_BODY" | grep -qiE 'tests-not-required[[:space:]]*:'; then
+            echo "PR opted out with tests-not-required — skipping gate."
+            exit 0
+          fi
+
+          CHANGED="$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}")"
+          echo "Changed files:"
+          printf '%s\n' "$CHANGED"
+
+          BEHAVIOR="$(printf '%s\n' "$CHANGED" | grep -E '^(js/|index\.html$|sw\.js$|manifest\.webmanifest$)' || true)"
+          TESTS="$(printf '%s\n' "$CHANGED" | grep -E '^tests/' || true)"
+
+          if [ -z "$BEHAVIOR" ]; then
+            echo "No app behavior files changed — OK."
+            exit 0
+          fi
+
+          if [ -n "$TESTS" ]; then
+            echo "Behavior files changed and tests/ updated — OK."
+            exit 0
+          fi
+
+          echo "::error::App behavior files changed without updates under tests/."
+          echo "Add or update Playwright/unit tests in this PR."
+          echo "Or include 'tests-not-required: <reason>' in the PR body if this is intentionally untested."
+          echo
+          echo "Behavior files:"
+          printf '%s\n' "$BEHAVIOR"
+          exit 1
+
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run test:unit
+
+  e2e:
+    name: Playwright e2e
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium --with-deps
+      - run: npm run test:e2e
+        env:
+          CI: "true"
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
