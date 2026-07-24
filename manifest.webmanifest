@@ -1,7 +1,7 @@
 {
   "name": "Puzzle",
   "short_name": "Puzzle",
-  "description": "Classic click-and-place picture puzzle",
+  "description": "Free-form interlocking jigsaw puzzle",
   "id": "./",
   "start_url": "./",
   "scope": "./",

@@ -1,6 +1,6 @@
 # Puzzle
 
-A classic click-and-place picture puzzle that runs entirely in the browser as a **Progressive Web App** (HTML, CSS, and JavaScript ES modules). Ready for GitHub Pages.
+A free-form **interlocking jigsaw** that runs entirely in the browser as a **Progressive Web App** (HTML, CSS, and JavaScript ES modules). Ready for GitHub Pages. Built for large piece counts (up to **1000**).
 
 ## Play locally
 
@@ -24,7 +24,7 @@ npm run test:unit
 npm run test:e2e
 ```
 
-Playwright is the primary suite; unit tests cover pure helpers only. See `AGENTS.md`.
+Playwright is the primary suite; unit tests cover pure helpers (`geometry`, `groups`, `snap`, `rules`, …). See `AGENTS.md`.
 
 ## GitHub Pages
 
@@ -42,13 +42,12 @@ On feature branches the version stays `dev` until merge.
 ## What’s included
 
 - Cartoon farm landscape image (`assets/puzzle.jpg`)
-- Click a piece, then click a board slot to place it (drag-and-drop also works)
-- Difficulty: 12 / 24 / 48 pieces
+- Canvas interlocking pieces with tab/blank edges
+- Drag with Pointer Events; neighbor snap + board silhouette snap; moving groups
+- Difficulty: 12 / 48 / 100 / 500 / 1000 pieces
 - Shuffle, preview, and win screen
 - Modular `js/` and `css/` layout to keep feature work separated
 - PWA manifest, icons, offline shell, and self-update checks
 - Playwright e2e + small Node unit tests
 
 See `AGENTS.md` for coding-agent conventions (modules, `localStorage`, PWA, testing, conflict reduction).
-
-Features to define next can build on this foundation.
