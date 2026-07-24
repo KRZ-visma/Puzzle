@@ -1,0 +1,20 @@
+:root {
+  --sky-top: #7ec8e8;
+  --sky-mid: #b8dff0;
+  --sky-bottom: #e8f4d8;
+  --grass: #5a9e4b;
+  --ink: #1f3a2e;
+  --ink-soft: #3d5c4a;
+  --panel: rgba(255, 252, 245, 0.88);
+  --panel-solid: #fffaf0;
+  --line: rgba(31, 58, 46, 0.14);
+  --accent: #d4532a;
+  --accent-deep: #b03f1c;
+  --slot: rgba(31, 58, 46, 0.08);
+  --slot-hover: rgba(212, 83, 42, 0.18);
+  --selected: #f0a35a;
+  --shadow: 0 12px 32px rgba(31, 58, 46, 0.16);
+  --radius: 18px;
+  --font-display: "Fredoka", system-ui, sans-serif;
+  --font-body: "Nunito", system-ui, sans-serif;
+}

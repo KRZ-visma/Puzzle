@@ -1,0 +1,29 @@
+.tray-title {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.tray {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-content: flex-start;
+  min-height: 7rem;
+}
+
+.tray .piece {
+  width: clamp(64px, 12vw, 96px);
+  aspect-ratio: 3 / 2;
+  height: auto;
+  border-radius: 6px;
+  animation: piece-in 0.35s ease both;
+}
+
+@media (min-width: 900px) {
+  .tray {
+    max-height: min(70vh, 640px);
+    overflow: auto;
+  }
+}

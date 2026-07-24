@@ -1,0 +1,52 @@
+.modal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(20, 40, 30, 0.45);
+  z-index: 20;
+  animation: fade-in 0.2s ease;
+}
+
+.modal[hidden] {
+  display: none;
+}
+
+.modal-card {
+  width: min(100%, 560px);
+  background: var(--panel-solid);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  padding: 1rem;
+  animation: rise 0.3s ease;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.modal-header h2,
+.win-card h2 {
+  margin: 0;
+  font-family: var(--font-display);
+}
+
+.preview-image {
+  display: block;
+  width: 100%;
+  border-radius: 12px;
+}
+
+.win-card {
+  text-align: center;
+  padding: 2rem 1.5rem;
+}
+
+.win-card p {
+  color: var(--ink-soft);
+  margin: 0.75rem 0 1.25rem;
+}
