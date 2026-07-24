@@ -47,3 +47,17 @@ export function bindChrome({ onShuffle, onPlayAgain, onDifficultyChange }) {
     if (event.target === els.winModal) showWin(false);
   });
 }
+
+export function setAppVersion(version) {
+  if (!els.appVersion) return;
+  els.appVersion.textContent = version || "unknown";
+}
+
+export function showUpdateBanner(visible) {
+  if (!els.updateBanner) return;
+  els.updateBanner.hidden = !visible;
+}
+
+export function bindUpdateBanner(onReload) {
+  els.reloadUpdate?.addEventListener("click", () => onReload?.());
+}

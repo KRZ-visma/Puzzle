@@ -13,4 +13,7 @@ export const els = {
   closePreview: document.getElementById("close-preview"),
   winModal: document.getElementById("win-modal"),
   playAgain: document.getElementById("play-again"),
+  appVersion: document.getElementById("app-version"),
+  updateBanner: document.getElementById("update-banner"),
+  reloadUpdate: document.getElementById("reload-update"),
 };

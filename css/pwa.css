@@ -1,0 +1,64 @@
+/* PWA chrome: version label and update banner */
+
+.app-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 1.25rem 1.5rem;
+}
+
+.version-label {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  opacity: 0.85;
+}
+
+.version-label code {
+  font-family: var(--font-body);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.update-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 1.25rem;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: min(calc(100% - 2rem), 420px);
+  padding: 0.85rem 1rem;
+  background: var(--panel-solid);
+  border: 2px solid var(--accent);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  animation: rise 0.3s ease;
+}
+
+.update-banner[hidden] {
+  display: none;
+}
+
+.update-banner p {
+  margin: 0;
+  flex: 1 1 180px;
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 0.95rem;
+}
+
+@media (max-width: 600px) {
+  .app-footer {
+    padding-inline: 1rem;
+  }
+}
