@@ -22,6 +22,12 @@ These are project constraints. Follow them unless the user explicitly overrides 
 10. **Mobile + installable** — board/tray must work on small screens; keep PWA install metadata valid.
 11. **Testing strategy** — **Playwright is the primary suite** for player flows. Keep a **small unit-test pocket** for pure helpers only. Do not chase high unit coverage of DOM/UI modules.
 12. **Dev-only npm** — `package.json` exists for Playwright / test scripts. It must not become a runtime dependency of the game. Never require `npm run build` to ship the app.
+13. **New functionality includes tests in the same change** — if you add or change player-facing behavior or pure logic, you must update or add tests before finishing:
+    - Player-facing / UI flow → Playwright in `tests/e2e/`
+    - Pure helper / rules / storage logic → unit test in `tests/unit/`
+    - Both when both apply
+    - Docs-only, pure styling with no behavior change, or chore-only work may skip new tests; say so in the PR
+    - Do not merge behavior changes that leave existing tests failing
 
 ## Stack summary
 
@@ -104,16 +110,19 @@ Module guidelines:
 
 ## Testing rules
 
-1. **Playwright first** — cover load, correct place, incorrect place, complete small puzzle, shuffle/difficulty in `tests/e2e/`
-2. **Unit tests stay small** — only pure modules (`rules`, `utils`, `storage`, and future DOM-free helpers). Do not unit-test `board.js` / `tray.js` / `ui.js` unless logic becomes complex and extracted
-3. **Use `data-testid`** for stable selectors; keep them when changing markup
-4. **E2E uses `/?e2e=1`** — disables service worker registration for stable tests; exposes `window.__PUZZLE__` for debugging. Do not remove that flag behavior without updating tests
-5. **Run before finishing a change that touches game behavior**:
-   - `npm run test:unit`
-   - `npm run test:e2e` (needs Chromium once: `npx playwright install chromium`)
-6. **CI** — `.github/workflows/tests.yml` runs unit + e2e on PRs and `main`
-7. **Do not add Jest/Vitest/Testing Library** unless there is a clear need; Node’s built-in test runner is enough for the unit pocket
-8. **Do not block on PWA update-banner flakiness** in every PR — optional coverage only; prefer asserting version label + core gameplay
+1. **New behavior ⇒ tests in the same PR/commit set** (see hard rule 13). Treat “feature without tests” as incomplete work.
+2. **Playwright first** — cover player flows in `tests/e2e/` (existing suite: load, correct place, incorrect place, complete small puzzle, shuffle/difficulty). Extend those specs when flows change; add a new spec file when a feature has a clear boundary.
+3. **Unit tests stay small** — only pure modules (`rules`, `utils`, `storage`, and future DOM-free helpers). Do not unit-test `board.js` / `tray.js` / `ui.js` unless logic becomes complex and extracted.
+4. **Use `data-testid`** for stable selectors; add them with new interactive UI; keep them when changing markup.
+5. **E2E uses `/?e2e=1`** — disables service worker registration for stable tests; exposes `window.__PUZZLE__` for debugging. Do not remove that flag behavior without updating tests.
+6. **Definition of done for a behavior change**:
+   - Implement the feature in the right module(s)
+   - Add/update tests
+   - Run `npm run test:unit` and `npm run test:e2e` locally (Chromium once: `npx playwright install chromium`)
+   - CI green on the PR (`.github/workflows/tests.yml`)
+7. **CI also checks that behavior-file diffs include test diffs** — unless the PR body contains `tests-not-required` with a short reason.
+8. **Do not add Jest/Vitest/Testing Library** unless there is a clear need; Node’s built-in test runner is enough for the unit pocket.
+9. **Do not block on PWA update-banner flakiness** in every PR — optional coverage only; prefer asserting version label + core gameplay.
 
 ## Versioning & PWA updates
 
