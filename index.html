@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#5a9e4b" />
-    <meta name="description" content="Classic click-and-place picture puzzle" />
+    <meta name="description" content="Free-form interlocking jigsaw puzzle PWA" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Puzzle" />
@@ -33,8 +33,10 @@
           <span>Pieces</span>
           <select id="difficulty" data-testid="difficulty" aria-label="Number of pieces">
             <option value="12">12 (4×3)</option>
-            <option value="24" selected>24 (6×4)</option>
             <option value="48">48 (8×6)</option>
+            <option value="100" selected>100 (12×8)</option>
+            <option value="500">500 (25×20)</option>
+            <option value="1000">1000 (40×25)</option>
           </select>
         </label>
         <button type="button" id="shuffle-btn" class="btn btn-secondary" data-testid="shuffle">
@@ -46,20 +48,22 @@
       </div>
     </header>
 
-    <main class="stage">
-      <section class="board-panel" aria-label="Puzzle board">
+    <main class="stage stage-playfield">
+      <section class="playfield-panel" aria-label="Jigsaw playfield">
         <div class="status-row">
-          <p id="status" class="status" data-testid="status">Pick a piece, then place it on the board.</p>
+          <p id="status" class="status" data-testid="status">Drag pieces to connect tabs.</p>
           <p class="progress" aria-live="polite" data-testid="progress">
             <span id="placed-count">0</span>/<span id="total-count">0</span>
+            <span class="groups-label">· <span id="group-count" data-testid="group-count">0</span> groups</span>
           </p>
         </div>
-        <div id="board" class="board" role="grid" data-testid="board"></div>
-      </section>
-
-      <section class="tray-panel" aria-label="Puzzle pieces">
-        <h2 class="tray-title">Pieces</h2>
-        <div id="tray" class="tray" data-testid="tray"></div>
+        <canvas
+          id="playfield"
+          class="playfield"
+          data-testid="playfield"
+          role="img"
+          aria-label="Jigsaw puzzle playfield"
+        ></canvas>
       </section>
     </main>
 

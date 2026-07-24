@@ -1,0 +1,53 @@
+/* Canvas playfield for free-form interlocking pieces. */
+
+.stage-playfield {
+  grid-template-columns: 1fr;
+  max-width: 1200px;
+}
+
+.playfield-panel {
+  background: var(--panel);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1rem;
+  animation: rise 0.55s ease both;
+}
+
+.playfield {
+  display: block;
+  width: 100%;
+  height: min(72vh, 720px);
+  touch-action: none;
+  user-select: none;
+  cursor: grab;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255, 250, 240, 0.35), rgba(126, 200, 232, 0.12)),
+    rgba(31, 58, 46, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(31, 58, 46, 0.08);
+}
+
+.playfield:active {
+  cursor: grabbing;
+}
+
+.groups-label {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-left: 0.15rem;
+}
+
+@media (max-width: 600px) {
+  .playfield {
+    height: min(62vh, 560px);
+  }
+
+  .groups-label {
+    display: block;
+    margin-left: 0;
+  }
+}

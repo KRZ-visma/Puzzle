@@ -3,65 +3,68 @@ import { expect, test } from "@playwright/test";
 async function openGame(page, { pieces = 12 } = {}) {
   await page.goto(`/?e2e=1`);
   await page.getByTestId("difficulty").selectOption(String(pieces));
-  await expect(page.getByTestId("tray").locator(".piece")).toHaveCount(pieces);
-  await expect(page.getByTestId("board").locator(".slot")).toHaveCount(pieces);
-  await expect(page.getByTestId("progress")).toHaveText(`0/${pieces}`);
+  await expect.poll(async () => {
+    return page.evaluate(() => window.__PUZZLE__?.getState()?.total ?? 0);
+  }).toBe(pieces);
+  await expect(page.getByTestId("playfield")).toBeVisible();
+  await expect(page.getByTestId("progress")).toContainText(`0/${pieces}`);
 }
 
-async function placePiece(page, pieceId, slotId = pieceId) {
-  await page.getByTestId("tray").getByTestId(`piece-${pieceId}`).click();
-  await page.getByTestId(`slot-${slotId}`).click();
-}
-
-test.describe("Puzzle game flows", () => {
-  test("loads a new game with board, tray, and version", async ({ page }) => {
+test.describe("Jigsaw playfield flows", () => {
+  test("loads a new game with canvas playfield and version", async ({ page }) => {
     await openGame(page, { pieces: 12 });
-    await expect(page.getByTestId("status")).toContainText("Pick a piece");
+    await expect(page.getByTestId("status")).toContainText(/Drag pieces|Shuffling|Cutting/i);
     await expect(page.getByTestId("app-version")).toHaveText(/^(dev|.+)$/);
+    await expect(page.getByTestId("group-count")).toHaveText("12");
   });
 
-  test("places a correct piece and locks it", async ({ page }) => {
+  test("assembling a piece onto the board updates progress", async ({ page }) => {
     await openGame(page, { pieces: 12 });
-    await placePiece(page, 0, 0);
-
-    await expect(page.getByTestId("progress")).toHaveText("1/12");
-    await expect(page.getByTestId("slot-0").locator(".piece.correct")).toHaveCount(1);
-    await expect(page.getByTestId("status")).toContainText("locked in");
+    await page.evaluate(() => window.__PUZZLE__.assemblePiece(0));
+    await expect(page.getByTestId("progress")).toContainText("1/12");
+    await expect(page.getByTestId("status")).toContainText(/Snapped to the board|Keep connecting|Drag pieces/i);
   });
 
-  test("places an incorrect piece without locking it", async ({ page }) => {
+  test("connecting neighbors reduces group count", async ({ page }) => {
     await openGame(page, { pieces: 12 });
-    await placePiece(page, 0, 1);
-
-    await expect(page.getByTestId("progress")).toHaveText("1/12");
-    await expect(page.getByTestId("slot-1").locator(".piece")).toHaveCount(1);
-    await expect(page.getByTestId("slot-1").locator(".piece.correct")).toHaveCount(0);
-    await expect(page.getByTestId("status")).toContainText("Keep going");
+    await page.evaluate(() => window.__PUZZLE__.connectNeighbors(0, "right"));
+    await expect(page.getByTestId("group-count")).toHaveText("11");
   });
 
-  test("completes a 12-piece puzzle and shows the win modal", async ({ page }) => {
+  test("solving the puzzle shows the win modal", async ({ page }) => {
     await openGame(page, { pieces: 12 });
-
-    for (let id = 0; id < 12; id += 1) {
-      await placePiece(page, id, id);
-    }
-
+    await page.evaluate(() => window.__PUZZLE__.solve());
     await expect(page.getByTestId("win-modal")).toBeVisible();
     await expect(page.getByTestId("status")).toHaveText("Puzzle complete!");
-    await expect(page.getByTestId("progress")).toHaveText("12/12");
+    await expect(page.getByTestId("progress")).toContainText("12/12");
+    await expect(page.getByTestId("group-count")).toHaveText("1");
   });
 
-  test("shuffle and difficulty change rebuild the tray", async ({ page }) => {
+  test("shuffle and difficulty change rebuild the playfield", async ({ page }) => {
     await openGame(page, { pieces: 12 });
-    await placePiece(page, 1, 1);
-    await expect(page.getByTestId("progress")).toHaveText("1/12");
+    await page.evaluate(() => window.__PUZZLE__.assemblePiece(1));
+    await expect(page.getByTestId("progress")).toContainText("1/12");
 
     await page.getByTestId("shuffle").click();
-    await expect(page.getByTestId("progress")).toHaveText("0/12");
-    await expect(page.getByTestId("tray").locator(".piece")).toHaveCount(12);
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? -1);
+    }).toBe(0);
+    await expect(page.getByTestId("group-count")).toHaveText("12");
 
-    await page.getByTestId("difficulty").selectOption("24");
-    await expect(page.getByTestId("tray").locator(".piece")).toHaveCount(24);
-    await expect(page.getByTestId("progress")).toHaveText("0/24");
+    await page.getByTestId("difficulty").selectOption("48");
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.total ?? 0);
+    }).toBe(48);
+    await expect(page.getByTestId("progress")).toContainText("0/48");
+  });
+
+  test("1000-piece difficulty initializes without crashing", async ({ page }) => {
+    await page.goto(`/?e2e=1`);
+    await page.getByTestId("difficulty").selectOption("1000");
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.total ?? 0);
+    }, { timeout: 30_000 }).toBe(1000);
+    await expect(page.getByTestId("playfield")).toBeVisible();
+    await expect(page.getByTestId("progress")).toContainText("0/1000");
   });
 });

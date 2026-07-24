@@ -2,7 +2,7 @@
   "name": "puzzle",
   "private": true,
   "type": "module",
-  "description": "Classic picture puzzle PWA (static GitHub Pages app)",
+  "description": "Interlocking jigsaw puzzle PWA (static GitHub Pages app)",
   "scripts": {
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "node --test tests/unit/*.test.js",

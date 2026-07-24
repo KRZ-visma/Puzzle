@@ -1,94 +1,116 @@
 import { DIFFICULTIES, DEFAULT_DIFFICULTY } from "./config.js";
 import { els } from "./dom.js";
-import { buildBoard, clearSlot, renderPieceInSlot } from "./board.js";
-import { buildTray, removeFromTray, appendToTray } from "./tray.js";
+import { createGroups, groupCount, mergeGroups } from "./groups.js";
+import { createPlayfield } from "./playfield.js";
+import { createRng } from "./rng.js";
 import {
-  setStatus,
-  updateProgress,
-  showPreview,
-  showWin,
-  clearPieceSelection,
-  markPieceSelected,
-} from "./ui.js";
-import {
-  countCorrectPlacements,
-  findSlotOfPiece,
-  isCorrectPlacement,
-  isPuzzleComplete,
-} from "./rules.js";
+  countPlacedPieces,
+  isPuzzleSolved,
+  snapGroupToBoard,
+  snapGroupToNeighbors,
+} from "./snap.js";
+import { setStatus, updateProgress, showPreview, showWin } from "./ui.js";
+import { neighborId, neighborOffset, solvedPosition } from "./geometry.js";
 
 /**
- * Core game state and rules. Prefer editing feature modules (board/tray/pieces/ui)
- * for UI work; keep placement orchestration here. Pure rules live in rules.js.
+ * Game orchestration for the free-form interlocking canvas puzzle.
  */
 
 export function createGame() {
-  let cols = 6;
-  let rows = 4;
-  let selectedId = null;
-  let placements = new Map();
+  let cols = 0;
+  let rows = 0;
+  let groups = null;
+  let seed = 1;
+  let image = null;
+
+  const playfield = createPlayfield(els.playfield, {
+    onSelectionChange(pieceId) {
+      if (pieceId === null) return;
+      setStatus(`Moving a ${membersLabel(pieceId)} — drag near neighbors or the board outline.`);
+    },
+    onDragEnd(pieceId) {
+      afterDrop(pieceId);
+    },
+  });
 
   function totalPieces() {
     return cols * rows;
   }
 
-  function clearSelection() {
-    selectedId = null;
-    clearPieceSelection();
+  function membersLabel(pieceId) {
+    const size = groups.members.get(groups.groupOf[pieceId]).size;
+    return size === 1 ? "piece" : `${size}-piece group`;
   }
 
-  function selectPiece(pieceId) {
-    const slotOfPiece = findSlotOfPiece(placements, pieceId);
-    if (slotOfPiece !== null && isCorrectPlacement(pieceId, slotOfPiece)) {
-      setStatus("That piece is already in the right spot.");
+  function refreshProgress() {
+    const layout = playfield.getLayout();
+    const placed = countPlacedPieces(
+      playfield.getPositions(),
+      cols,
+      layout.pieceW,
+      layout.pieceH,
+      layout.originX,
+      layout.originY
+    );
+    updateProgress(placed, totalPieces(), groupCount(groups));
+  }
+
+  function afterDrop(pieceId) {
+    const layout = playfield.getLayout();
+    const positions = playfield.getPositions();
+
+    const neighborMerges = snapGroupToNeighbors({
+      activePieceId: pieceId,
+      groups,
+      positions,
+      cols,
+      rows,
+      pieceW: layout.pieceW,
+      pieceH: layout.pieceH,
+      threshold: layout.threshold,
+    });
+
+    const boarded = snapGroupToBoard({
+      activePieceId: pieceId,
+      groups,
+      positions,
+      cols,
+      pieceW: layout.pieceW,
+      pieceH: layout.pieceH,
+      originX: layout.originX,
+      originY: layout.originY,
+      threshold: layout.threshold,
+    });
+
+    // After boarding, neighbors may now align — one more neighbor pass.
+    const extraMerges = snapGroupToNeighbors({
+      activePieceId: pieceId,
+      groups,
+      positions,
+      cols,
+      rows,
+      pieceW: layout.pieceW,
+      pieceH: layout.pieceH,
+      threshold: layout.threshold,
+    });
+
+    playfield.redraw();
+    refreshProgress();
+
+    if (isPuzzleSolved(positions, cols, layout.pieceW, layout.pieceH, layout.originX, layout.originY)) {
+      setStatus("Puzzle complete!");
+      showWin(true);
       return;
     }
 
-    clearSelection();
-    selectedId = pieceId;
-    markPieceSelected(pieceId);
-    setStatus(`Piece ${pieceId + 1} selected — click an empty board spot.`);
-  }
-
-  function removePieceFromCurrentLocation(pieceId) {
-    const slotIndex = findSlotOfPiece(placements, pieceId);
-    if (slotIndex !== null) {
-      placements.delete(slotIndex);
-      clearSlot(slotIndex);
-    }
-    removeFromTray(pieceId);
-  }
-
-  function placePiece(pieceId, slotIndex) {
-    const existing = placements.get(slotIndex);
-    if (existing !== undefined && existing !== pieceId) {
-      placements.delete(slotIndex);
-      appendToTray(existing, { cols, rows, onSelect: selectPiece });
-    }
-
-    removePieceFromCurrentLocation(pieceId);
-
-    const correct = isCorrectPlacement(pieceId, slotIndex);
-    renderPieceInSlot(slotIndex, pieceId, {
-      cols,
-      rows,
-      correct,
-      onSelect: selectPiece,
-    });
-    placements.set(slotIndex, pieceId);
-
-    clearSelection();
-    updateProgress(placements.size, totalPieces());
-
-    if (correct) {
-      setStatus(`Nice — piece ${pieceId + 1} locked in.`);
+    if (neighborMerges + extraMerges > 0 || boarded) {
+      setStatus(
+        boarded
+          ? "Snapped to the board. Keep connecting pieces."
+          : "Pieces connected! Drag the group to keep building."
+      );
     } else {
-      setStatus("Placed. Keep going — or move it again if it looks off.");
-    }
-
-    if (isPuzzleComplete(placements, totalPieces())) {
-      setStatus("Puzzle complete!");
-      showWin(true);
+      setStatus("Drag pieces together — they snap when tabs line up.");
     }
   }
 
@@ -97,48 +119,119 @@ export function createGame() {
       DIFFICULTIES[els.difficulty.value] || DIFFICULTIES[DEFAULT_DIFFICULTY];
     cols = chosen.cols;
     rows = chosen.rows;
-    placements = new Map();
-    clearSelection();
+    seed = (Date.now() ^ (cols * 997) ^ (rows * 131)) >>> 0 || 1;
+    groups = createGroups(totalPieces());
     showWin(false);
     showPreview(false);
 
-    buildBoard({
-      cols,
-      rows,
-      total: totalPieces(),
-      onPlace: placePiece,
-      onEmptyClick: (slotIndex) => {
-        if (selectedId === null) {
-          setStatus("Select a piece from the tray first.");
-          return;
-        }
-        placePiece(selectedId, slotIndex);
-      },
-    });
+    setStatus(
+      totalPieces() >= 500
+        ? "Preparing a large puzzle…"
+        : "Shuffling pieces…"
+    );
 
-    buildTray({
-      total: totalPieces(),
-      cols,
-      rows,
-      onSelect: selectPiece,
+    // Allow the status paint to land before heavy sprite work.
+    requestAnimationFrame(() => {
+      playfield.setImage(image);
+      playfield.reset({
+        cols,
+        rows,
+        groups,
+        seed,
+        scatterRng: createRng(seed ^ 0x9e3779b9),
+      });
+      refreshProgress();
+      setStatus("Drag pieces to connect tabs. Snap groups onto the faint board outline.");
     });
+  }
 
-    updateProgress(0, totalPieces());
-    setStatus("Pick a piece, then place it on the board.");
+  function clearSelection() {
+    // Canvas selection is transient during drag; nothing sticky to clear.
+  }
+
+  /** Test/debug: assemble one piece onto the board and resolve snaps. */
+  function assemblePiece(pieceId) {
+    playfield.placePieceSolved(pieceId);
+    afterDrop(pieceId);
+  }
+
+  /** Test/debug: connect piece to a cardinal neighbor if both exist. */
+  function connectNeighbors(pieceId, direction = "right") {
+    const layout = playfield.getLayout();
+    const positions = playfield.getPositions();
+    const otherId = neighborId(pieceId, cols, rows, direction);
+    if (otherId === null) return false;
+    if (groups.groupOf[pieceId] === groups.groupOf[otherId]) return true;
+
+    const offset = neighborOffset(direction, layout.pieceW, layout.pieceH);
+    const targetX = positions[pieceId].x + offset.x;
+    const targetY = positions[pieceId].y + offset.y;
+    const dx = targetX - positions[otherId].x;
+    const dy = targetY - positions[otherId].y;
+    mergeGroups(groups, positions, otherId, pieceId, dx, dy);
+    playfield.redraw();
+    refreshProgress();
+    return true;
+  }
+
+  /** Test/debug: place every piece correctly and merge into one board group. */
+  function solve() {
+    const layout = playfield.getLayout();
+    const positions = playfield.getPositions();
+    for (let id = 0; id < totalPieces(); id += 1) {
+      const solved = solvedPosition(
+        id,
+        cols,
+        layout.pieceW,
+        layout.pieceH,
+        layout.originX,
+        layout.originY
+      );
+      positions[id].x = solved.x;
+      positions[id].y = solved.y;
+    }
+    // Merge all into group 0.
+    for (let id = 1; id < totalPieces(); id += 1) {
+      if (groups.groupOf[id] !== groups.groupOf[0]) {
+        mergeGroups(groups, positions, id, 0, 0, 0);
+      }
+    }
+    playfield.redraw();
+    refreshProgress();
+    setStatus("Puzzle complete!");
+    showWin(true);
   }
 
   return {
     newGame,
     clearSelection,
-    // Test/debug mirrors — not required by the UI.
-    placePiece,
-    getState: () => ({
-      cols,
-      rows,
-      selectedId,
-      placements: new Map(placements),
-      correct: countCorrectPlacements(placements),
-      total: totalPieces(),
-    }),
+    setImage(img) {
+      image = img;
+      playfield.setImage(img);
+    },
+    // Test/debug mirrors
+    assemblePiece,
+    connectNeighbors,
+    solve,
+    getState: () => {
+      const layout = playfield.getLayout();
+      const positions = playfield.getPositions();
+      return {
+        cols,
+        rows,
+        seed,
+        groups: groupCount(groups),
+        placed: countPlacedPieces(
+          positions,
+          cols,
+          layout.pieceW,
+          layout.pieceH,
+          layout.originX,
+          layout.originY
+        ),
+        total: totalPieces(),
+        positions: positions.map((p) => ({ ...p })),
+      };
+    },
   };
 }

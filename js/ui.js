@@ -6,9 +6,12 @@ export function setStatus(message) {
   els.status.textContent = message;
 }
 
-export function updateProgress(placed, total) {
+export function updateProgress(placed, total, groups) {
   els.placedCount.textContent = String(placed);
   els.totalCount.textContent = String(total);
+  if (els.groupCount && groups != null) {
+    els.groupCount.textContent = String(groups);
+  }
 }
 
 export function showPreview(visible) {
@@ -17,18 +20,6 @@ export function showPreview(visible) {
 
 export function showWin(visible) {
   els.winModal.hidden = !visible;
-}
-
-export function clearPieceSelection() {
-  document.querySelectorAll(".piece.selected").forEach((el) => {
-    el.classList.remove("selected");
-  });
-}
-
-export function markPieceSelected(pieceId) {
-  document
-    .querySelectorAll(`.piece[data-piece-id="${pieceId}"]`)
-    .forEach((el) => el.classList.add("selected"));
 }
 
 export function bindChrome({ onShuffle, onPlayAgain, onDifficultyChange }) {

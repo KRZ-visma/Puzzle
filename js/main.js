@@ -51,7 +51,10 @@ initPwa({
 });
 
 const img = new Image();
-img.onload = () => game.newGame();
+img.onload = () => {
+  game.setImage(img);
+  game.newGame();
+};
 img.onerror = () => {
   setStatus("Could not load the puzzle image.");
   game.newGame();
