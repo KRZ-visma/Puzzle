@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Puzzle</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="sky" aria-hidden="true"></div>
+
+    <header class="top-bar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <h1>Puzzle</h1>
+      </div>
+      <div class="controls">
+        <label class="control">
+          <span>Pieces</span>
+          <select id="difficulty" aria-label="Number of pieces">
+            <option value="12">12 (4×3)</option>
+            <option value="24" selected>24 (6×4)</option>
+            <option value="48">48 (8×6)</option>
+          </select>
+        </label>
+        <button type="button" id="shuffle-btn" class="btn btn-secondary">
+          Shuffle
+        </button>
+        <button type="button" id="preview-btn" class="btn btn-ghost">
+          Preview
+        </button>
+      </div>
+    </header>
+
+    <main class="stage">
+      <section class="board-panel" aria-label="Puzzle board">
+        <div class="status-row">
+          <p id="status" class="status">Pick a piece, then place it on the board.</p>
+          <p class="progress" aria-live="polite">
+            <span id="placed-count">0</span>/<span id="total-count">0</span>
+          </p>
+        </div>
+        <div id="board" class="board" role="grid"></div>
+      </section>
+
+      <section class="tray-panel" aria-label="Puzzle pieces">
+        <h2 class="tray-title">Pieces</h2>
+        <div id="tray" class="tray"></div>
+      </section>
+    </main>
+
+    <div id="preview-modal" class="modal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="preview-title">
+        <div class="modal-header">
+          <h2 id="preview-title">Preview</h2>
+          <button type="button" id="close-preview" class="btn btn-ghost" aria-label="Close preview">
+            Close
+          </button>
+        </div>
+        <img src="assets/puzzle.jpg" alt="Completed puzzle preview" class="preview-image" />
+      </div>
+    </div>
+
+    <div id="win-modal" class="modal" hidden>
+      <div class="modal-card win-card" role="dialog" aria-modal="true" aria-labelledby="win-title">
+        <h2 id="win-title">Puzzle complete!</h2>
+        <p>Every piece is in place. Nice work.</p>
+        <button type="button" id="play-again" class="btn btn-primary">Play again</button>
+      </div>
+    </div>
+
+    <script src="game.js"></script>
+  </body>
+</html>
