@@ -3,9 +3,9 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1.25rem 0.5rem;
-  max-width: 1100px;
+  gap: 0.75rem 1rem;
+  padding: 0.65rem 0.75rem 0.35rem;
+  max-width: 1600px;
   margin: 0 auto;
 }
 
@@ -113,9 +113,9 @@
 .stage {
   display: grid;
   gap: 1.25rem;
-  max-width: 1100px;
+  max-width: 1600px;
   margin: 0 auto;
-  padding: 0.75rem 1.25rem 2rem;
+  padding: 0.5rem 0.75rem 1rem;
 }
 
 .board-panel,
@@ -138,7 +138,7 @@
   justify-content: space-between;
   align-items: baseline;
   gap: 1rem;
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.5rem;
 }
 
 .status {
@@ -164,11 +164,11 @@
 
 @media (max-width: 600px) {
   .top-bar {
-    padding-inline: 1rem;
+    padding-inline: 0.5rem;
   }
 
   .stage {
-    padding-inline: 1rem;
+    padding-inline: 0.5rem;
   }
 
   .status-row {
