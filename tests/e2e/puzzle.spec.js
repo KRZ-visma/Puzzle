@@ -18,12 +18,15 @@ test.describe("Jigsaw playfield flows", () => {
     await expect(page.getByTestId("group-count")).toHaveText("12");
   });
 
-  test("uses a large playfield and disables page zoom", async ({ page }) => {
+  test("uses a large playfield and disables page zoom and text selection", async ({ page }) => {
     await openGame(page, { pieces: 12 });
 
     const viewport = await page.locator('meta[name="viewport"]').getAttribute("content");
     expect(viewport ?? "").toMatch(/maximum-scale\s*=\s*1/i);
     expect(viewport ?? "").toMatch(/user-scalable\s*=\s*no/i);
+
+    const userSelect = await page.evaluate(() => getComputedStyle(document.body).userSelect);
+    expect(userSelect).toBe("none");
 
     const box = await page.getByTestId("playfield").boundingBox();
     expect(box).not.toBeNull();
