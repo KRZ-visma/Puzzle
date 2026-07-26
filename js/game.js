@@ -2,6 +2,13 @@ import { DIFFICULTIES, DEFAULT_DIFFICULTY } from "./config.js";
 import { els } from "./dom.js";
 import { createGroups, groupCount, mergeGroups } from "./groups.js";
 import { createPlayfield } from "./playfield.js";
+import {
+  buildProgress,
+  clearProgress,
+  deserializePositions,
+  groupsFromGroupOf,
+  saveProgress,
+} from "./progress.js";
 import { createRng } from "./rng.js";
 import {
   countPlacedPieces,
@@ -21,7 +28,9 @@ export function createGame() {
   let rows = 0;
   let groups = null;
   let seed = 1;
+  let difficulty = DEFAULT_DIFFICULTY;
   let image = null;
+  let active = false;
 
   const playfield = createPlayfield(els.playfield, {
     onSelectionChange(pieceId) {
@@ -53,6 +62,22 @@ export function createGame() {
       layout.originY
     );
     updateProgress(placed, totalPieces(), groupCount(groups));
+  }
+
+  function persist() {
+    if (!active || !groups || !cols) return false;
+    const layout = playfield.getLayout();
+    if (!(layout.pieceW > 0) || !(layout.pieceH > 0)) return false;
+    const payload = buildProgress({
+      difficulty,
+      cols,
+      rows,
+      seed,
+      positions: playfield.getPositions(),
+      groupOf: groups.groupOf,
+      layout,
+    });
+    return saveProgress(payload);
   }
 
   function afterDrop(pieceId) {
@@ -96,6 +121,7 @@ export function createGame() {
 
     playfield.redraw();
     refreshProgress();
+    persist();
 
     if (isPuzzleSolved(positions, cols, layout.pieceW, layout.pieceH, layout.originX, layout.originY)) {
       setStatus("Puzzle complete!");
@@ -115,23 +141,27 @@ export function createGame() {
   }
 
   function newGame() {
-    const chosen =
-      DIFFICULTIES[getSelectedDifficulty()] || DIFFICULTIES[DEFAULT_DIFFICULTY];
-    cols = chosen.cols;
-    rows = chosen.rows;
-    seed = (Date.now() ^ (cols * 997) ^ (rows * 131)) >>> 0 || 1;
-    groups = createGroups(totalPieces());
-    showWin(false);
-    showPreview(false);
+    const nextDifficulty = getSelectedDifficulty();
+    const chosen = DIFFICULTIES[nextDifficulty] || DIFFICULTIES[DEFAULT_DIFFICULTY];
+    const nextSeed = (Date.now() ^ (chosen.cols * 997) ^ (chosen.rows * 131)) >>> 0 || 1;
 
     setStatus(
-      totalPieces() >= 500
+      chosen.cols * chosen.rows >= 500
         ? "Preparing a large puzzle…"
         : "Shuffling pieces…"
     );
 
     // Allow the status paint to land before heavy sprite work.
     requestAnimationFrame(() => {
+      cols = chosen.cols;
+      rows = chosen.rows;
+      seed = nextSeed;
+      difficulty = nextDifficulty;
+      groups = createGroups(chosen.cols * chosen.rows);
+      active = true;
+      showWin(false);
+      showPreview(false);
+
       playfield.setImage(image);
       playfield.reset({
         cols,
@@ -141,8 +171,56 @@ export function createGame() {
         scatterRng: createRng(seed ^ 0x9e3779b9),
       });
       refreshProgress();
+      persist();
       setStatus("");
     });
+  }
+
+  /**
+   * Restore a previously saved puzzle (piece seats + groups + edge seed).
+   * @param {NonNullable<ReturnType<typeof import("./progress.js").normalizeProgress>>} saved
+   */
+  function restoreGame(saved) {
+    setStatus("Restoring your puzzle…");
+    requestAnimationFrame(() => {
+      cols = saved.cols;
+      rows = saved.rows;
+      seed = saved.seed;
+      difficulty = saved.difficulty;
+      groups = groupsFromGroupOf(saved.groupOf);
+      active = true;
+      showWin(false);
+      showPreview(false);
+
+      playfield.setImage(image);
+      playfield.reset({
+        cols,
+        rows,
+        groups,
+        seed,
+        // Temporary scatter; replaced immediately with deserialized seats.
+        scatterRng: createRng(seed ^ 0x9e3779b9),
+      });
+
+      const layout = playfield.getLayout();
+      playfield.setPositions(deserializePositions(saved.positions, layout));
+      refreshProgress();
+      persist();
+
+      const positions = playfield.getPositions();
+      if (isPuzzleSolved(positions, cols, layout.pieceW, layout.pieceH, layout.originX, layout.originY)) {
+        setStatus("Puzzle complete!");
+        showWin(true);
+      } else {
+        setStatus("");
+      }
+    });
+  }
+
+  /** Clear saved progress (used before returning to the start menu). */
+  function abandonProgress() {
+    active = false;
+    clearProgress();
   }
 
   function clearSelection() {
@@ -171,6 +249,7 @@ export function createGame() {
     mergeGroups(groups, positions, otherId, pieceId, dx, dy);
     playfield.redraw();
     refreshProgress();
+    persist();
     return true;
   }
 
@@ -198,12 +277,22 @@ export function createGame() {
     }
     playfield.redraw();
     refreshProgress();
+    persist();
     setStatus("Puzzle complete!");
     showWin(true);
   }
 
+  // Keep progress durable across tab close / backgrounding.
+  window.addEventListener("pagehide", () => persist());
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") persist();
+  });
+
   return {
     newGame,
+    restoreGame,
+    abandonProgress,
+    persist,
     clearSelection,
     setImage(img) {
       image = img;
@@ -220,7 +309,9 @@ export function createGame() {
         cols,
         rows,
         seed,
-        groups: groupCount(groups),
+        difficulty,
+        active,
+        groups: groups ? groupCount(groups) : 0,
         placed: countPlacedPieces(
           positions,
           cols,

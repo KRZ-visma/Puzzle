@@ -1,6 +1,7 @@
 import { IMAGE_SRC } from "./config.js";
 import { els } from "./dom.js";
 import { createGame } from "./game.js";
+import { clearProgress, loadProgress } from "./progress.js";
 import {
   bindChrome,
   setStatus,
@@ -28,12 +29,20 @@ if (new URLSearchParams(window.location.search).get("e2e") === "1") {
   window.__PUZZLE__ = game;
 }
 
-const savedDifficulty = loadDifficultyPreference();
+const savedProgress = loadProgress();
+const savedDifficulty = savedProgress?.difficulty ?? loadDifficultyPreference();
 setDifficultyControls(savedDifficulty);
 setStatus("");
-showStartMenu(true);
+
+// Resume immediately when a valid save exists so pieces reopen in place.
+if (savedProgress) {
+  showStartMenu(false);
+} else {
+  showStartMenu(true);
+}
 
 function returnToStartMenu() {
+  game.abandonProgress();
   showWin(false);
   showPreview(false);
   closeAppMenu();
@@ -47,7 +56,16 @@ function startPuzzleFromMenu() {
   setDifficultyControls(n);
   showWin(false);
   showStartMenu(false);
+  clearProgress();
   game.newGame();
+}
+
+function resumeSavedProgress(progress) {
+  setDifficultyControls(progress.difficulty);
+  saveDifficultyPreference(progress.difficulty);
+  showWin(false);
+  showStartMenu(false);
+  game.restoreGame(progress);
 }
 
 bindChrome({
@@ -85,8 +103,14 @@ initPwa({
 const img = new Image();
 img.onload = () => {
   game.setImage(img);
+  if (savedProgress) {
+    resumeSavedProgress(savedProgress);
+  }
 };
 img.onerror = () => {
   setStatus("Could not load the puzzle image. You can still start a puzzle.");
+  if (savedProgress) {
+    resumeSavedProgress(savedProgress);
+  }
 };
 img.src = IMAGE_SRC;

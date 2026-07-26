@@ -69,6 +69,7 @@ These are project constraints. Follow them unless the user explicitly overrides 
 | `js/config.js` | Image path, difficulties, snap/tab fractions |
 | `js/utils.js` | Misc pure helpers |
 | `js/storage.js` | `localStorage` get/set helpers |
+| `js/progress.js` | Save / restore puzzle layout (positions, groups, seed) |
 | `js/pwa.js` | Service worker registration + update checks |
 | `sw.js` | Service worker (cache shell; `CACHE_VERSION` stamped on main) |
 | `manifest.webmanifest` | PWA manifest |
@@ -89,7 +90,7 @@ These are project constraints. Follow them unless the user explicitly overrides 
 | If you are changing… | Prefer editing… |
 |----------------------|------------------|
 | Difficulties / image path / snap–tab fractions | `js/config.js` |
-| Save / load / settings persistence | `js/storage.js` |
+| Save / load / settings persistence | `js/storage.js`, `js/settings.js`, `js/progress.js` |
 | Canvas draw / pointer / DPI / hit-test | `js/playfield.js` + `css/playfield.css` |
 | Tab/blank path math | `js/geometry.js` (+ unit tests) |
 | Group merge / translate | `js/groups.js` (+ unit tests) |
@@ -116,7 +117,7 @@ Module guidelines:
 
 1. **New behavior ⇒ tests in the same PR/commit set** (see hard rule 13). Treat “feature without tests” as incomplete work.
 2. **Playwright first** — cover player flows in `tests/e2e/` (load, assemble, connect neighbors, solve, shuffle/difficulty, large piece init). Canvas drags are awkward in CI; prefer `window.__PUZZLE__` helpers (`assemblePiece`, `connectNeighbors`, `solve`) for placement assertions while still checking visible chrome.
-3. **Unit tests stay small** — only pure modules (`geometry`, `groups`, `snap`, `rules`, `utils`, `storage`, `rng`). Do not unit-test `playfield.js` / `ui.js` unless logic becomes complex and extracted.
+3. **Unit tests stay small** — only pure modules (`geometry`, `groups`, `snap`, `rules`, `utils`, `storage`, `progress`, `rng`). Do not unit-test `playfield.js` / `ui.js` unless logic becomes complex and extracted.
 4. **Use `data-testid`** for stable selectors; add them with new interactive UI; keep them when changing markup.
 5. **E2E uses `/?e2e=1`** — disables service worker registration for stable tests; exposes `window.__PUZZLE__` for debugging. Do not remove that flag behavior without updating tests.
 6. **Definition of done for a behavior change**:
@@ -164,7 +165,7 @@ Piece ids are row-major: `id = row * cols + col`.
 Do not implement unless asked:
 
 - Multiple puzzle images / gallery
-- Timer, scoring, save/resume via `localStorage`, accounts
+- Timer, scoring, accounts
 - Sound effects, particle-heavy celebrations
 - Pinch-zoom / pan camera for very dense boards
 - WebGL / OffscreenCanvas worker pipelines (Canvas 2D is the current target)

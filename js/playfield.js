@@ -293,7 +293,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
       scheduleDraw();
     },
 
-    reset({ cols: c, rows: r, groups: g, seed = 1, scatterRng }) {
+    reset({ cols: c, rows: r, groups: g, seed = 1, scatterRng, positions: savedPositions }) {
       cols = c;
       rows = r;
       groups = g;
@@ -301,8 +301,13 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
       resize();
       boardSize();
       buildPaths();
-      scatterPositions(scatterRng || Math.random);
-      zOrder = Array.from({ length: cols * rows }, (_, i) => i);
+      const total = cols * rows;
+      if (Array.isArray(savedPositions) && savedPositions.length === total) {
+        positions = savedPositions.map((p) => ({ x: p.x, y: p.y }));
+      } else {
+        scatterPositions(scatterRng || Math.random);
+      }
+      zOrder = Array.from({ length: total }, (_, i) => i);
       dragging = null;
       scheduleDraw();
     },

@@ -124,22 +124,49 @@ test.describe("Jigsaw playfield flows", () => {
     await expect(page.getByTestId("app-menu")).toBeHidden();
   });
 
-  test("remembers piece count when the app is reopened", async ({ page }) => {
+  test("remembers piece count and progress when the app is reopened", async ({ page }) => {
     await page.goto(`/?e2e=1`);
     await page.getByTestId("piece-option-48").click();
     await page.getByTestId("start-puzzle").click();
     await expect.poll(async () => {
       return page.evaluate(() => window.__PUZZLE__?.getState()?.total ?? 0);
     }).toBe(48);
+    await page.evaluate(() => window.__PUZZLE__.assemblePiece(0));
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? 0);
+    }).toBe(1);
 
     await page.reload();
-    await expect(page.getByTestId("start-modal")).toBeVisible();
-    await expect(page.getByTestId("piece-option-48")).toHaveAttribute("aria-pressed", "true");
-
-    await page.getByTestId("start-puzzle").click();
+    await expect(page.getByTestId("start-modal")).toBeHidden();
     await expect.poll(async () => {
       return page.evaluate(() => window.__PUZZLE__?.getState()?.total ?? 0);
     }).toBe(48);
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? 0);
+    }).toBe(1);
+  });
+
+  test("hamburger restart clears saved progress", async ({ page }) => {
+    await openGame(page, { pieces: 12 });
+    await page.evaluate(() => window.__PUZZLE__.assemblePiece(0));
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? 0);
+    }).toBe(1);
+
+    await page.getByTestId("menu-toggle").click();
+    await page.getByTestId("restart").click();
+    await expect(page.getByTestId("start-modal")).toBeVisible();
+
+    await page.getByTestId("start-puzzle").click();
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? -1);
+    }).toBe(0);
+
+    await page.reload();
+    await expect(page.getByTestId("start-modal")).toBeHidden();
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? -1);
+    }).toBe(0);
   });
 
   test("preview opens from the hamburger menu", async ({ page }) => {

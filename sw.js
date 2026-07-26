@@ -22,6 +22,7 @@ const SHELL = [
   "./js/utils.js",
   "./js/storage.js",
   "./js/settings.js",
+  "./js/progress.js",
   "./js/rng.js",
   "./js/geometry.js",
   "./js/groups.js",
