@@ -1,15 +1,20 @@
 import { IMAGE_SRC } from "./config.js";
+import { els } from "./dom.js";
 import { createGame } from "./game.js";
 import {
   bindChrome,
   setStatus,
   showPreview,
   showWin,
+  showStartMenu,
+  setDifficultyControls,
+  getSelectedDifficulty,
   setAppVersion,
   showUpdateBanner,
   bindUpdateBanner,
 } from "./ui.js";
 import { applyUpdate, initPwa } from "./pwa.js";
+import { loadDifficultyPreference, saveDifficultyPreference } from "./settings.js";
 
 /**
  * App entry. Wire chrome controls, PWA updates, and start a game once the image is ready.
@@ -22,10 +27,44 @@ if (new URLSearchParams(window.location.search).get("e2e") === "1") {
   window.__PUZZLE__ = game;
 }
 
+const savedDifficulty = loadDifficultyPreference();
+setDifficultyControls(savedDifficulty);
+setStatus("Choose how many pieces to begin.");
+showStartMenu(true);
+
+function isStartMenuOpen() {
+  return Boolean(els.startModal && !els.startModal.hidden);
+}
+
+function startPuzzleFromMenu() {
+  const n = saveDifficultyPreference(getSelectedDifficulty());
+  setDifficultyControls(n);
+  showWin(false);
+  showStartMenu(false);
+  game.newGame();
+}
+
 bindChrome({
-  onShuffle: () => game.newGame(),
-  onPlayAgain: () => game.newGame(),
-  onDifficultyChange: () => game.newGame(),
+  onShuffle: () => {
+    if (isStartMenuOpen()) return;
+    game.newGame();
+  },
+  onPlayAgain: () => {
+    showWin(false);
+    setDifficultyControls(loadDifficultyPreference());
+    showStartMenu(true);
+    setStatus("Choose how many pieces to begin.");
+  },
+  onDifficultyChange: () => {
+    const n = saveDifficultyPreference(getSelectedDifficulty());
+    setDifficultyControls(n);
+    if (isStartMenuOpen()) return;
+    game.newGame();
+  },
+  onPieceOptionSelect: (n) => {
+    saveDifficultyPreference(n);
+  },
+  onStartPuzzle: () => startPuzzleFromMenu(),
 });
 
 document.addEventListener("keydown", (event) => {
@@ -53,10 +92,8 @@ initPwa({
 const img = new Image();
 img.onload = () => {
   game.setImage(img);
-  game.newGame();
 };
 img.onerror = () => {
-  setStatus("Could not load the puzzle image.");
-  game.newGame();
+  setStatus("Could not load the puzzle image. You can still start a puzzle.");
 };
 img.src = IMAGE_SRC;

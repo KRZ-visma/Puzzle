@@ -2,7 +2,10 @@ import { expect, test } from "@playwright/test";
 
 async function openGame(page, { pieces = 12 } = {}) {
   await page.goto(`/?e2e=1`);
-  await page.getByTestId("difficulty").selectOption(String(pieces));
+  await expect(page.getByTestId("start-modal")).toBeVisible();
+  await page.getByTestId(`piece-option-${pieces}`).click();
+  await page.getByTestId("start-puzzle").click();
+  await expect(page.getByTestId("start-modal")).toBeHidden();
   await expect.poll(async () => {
     return page.evaluate(() => window.__PUZZLE__?.getState()?.total ?? 0);
   }).toBe(pieces);
@@ -11,6 +14,14 @@ async function openGame(page, { pieces = 12 } = {}) {
 }
 
 test.describe("Jigsaw playfield flows", () => {
+  test("shows a start menu to choose piece count", async ({ page }) => {
+    await page.goto(`/?e2e=1`);
+    await expect(page.getByTestId("start-modal")).toBeVisible();
+    await expect(page.getByTestId("piece-options")).toBeVisible();
+    await expect(page.getByTestId("start-puzzle")).toBeVisible();
+    await expect(page.getByTestId("status")).toContainText(/Choose how many pieces/i);
+  });
+
   test("loads a new game with canvas playfield and version", async ({ page }) => {
     await openGame(page, { pieces: 12 });
     await expect(page.getByTestId("status")).toContainText(/Drag pieces|Shuffling|Cutting/i);
@@ -56,6 +67,35 @@ test.describe("Jigsaw playfield flows", () => {
     await expect(page.getByTestId("group-count")).toHaveText("1");
   });
 
+  test("play again returns to the start menu", async ({ page }) => {
+    await openGame(page, { pieces: 12 });
+    await page.evaluate(() => window.__PUZZLE__.solve());
+    await page.getByTestId("play-again").click();
+    await expect(page.getByTestId("win-modal")).toBeHidden();
+    await expect(page.getByTestId("start-modal")).toBeVisible();
+    await expect(page.getByTestId("piece-option-12")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("remembers piece count when the app is reopened", async ({ page }) => {
+    await page.goto(`/?e2e=1`);
+    await page.getByTestId("piece-option-48").click();
+    await page.getByTestId("start-puzzle").click();
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.total ?? 0);
+    }).toBe(48);
+
+    await page.reload();
+    await expect(page.getByTestId("start-modal")).toBeVisible();
+    await expect(page.getByTestId("piece-option-48")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("difficulty")).toHaveValue("48");
+
+    await page.getByTestId("start-puzzle").click();
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.total ?? 0);
+    }).toBe(48);
+    await expect(page.getByTestId("progress")).toContainText("0/48");
+  });
+
   test("shuffle and difficulty change rebuild the playfield", async ({ page }) => {
     await openGame(page, { pieces: 12 });
     await page.evaluate(() => window.__PUZZLE__.assemblePiece(1));
@@ -75,8 +115,7 @@ test.describe("Jigsaw playfield flows", () => {
   });
 
   test("1000-piece difficulty initializes without crashing", async ({ page }) => {
-    await page.goto(`/?e2e=1`);
-    await page.getByTestId("difficulty").selectOption("1000");
+    await openGame(page, { pieces: 1000 });
     await expect.poll(async () => {
       return page.evaluate(() => window.__PUZZLE__?.getState()?.total ?? 0);
     }, { timeout: 30_000 }).toBe(1000);
