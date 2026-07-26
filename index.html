@@ -54,7 +54,7 @@
     <main class="stage stage-playfield">
       <section class="playfield-panel" aria-label="Jigsaw playfield">
         <div class="status-row">
-          <p id="status" class="status" data-testid="status">Drag pieces to connect tabs.</p>
+          <p id="status" class="status" data-testid="status"></p>
           <p class="progress" aria-live="polite" data-testid="progress">
             <span id="placed-count">0</span>/<span id="total-count">0</span>
             <span class="groups-label">· <span id="group-count" data-testid="group-count">0</span> groups</span>
@@ -104,7 +104,9 @@
     <div id="start-modal" class="modal" data-testid="start-modal">
       <div class="modal-card start-card" role="dialog" aria-modal="true" aria-labelledby="start-title">
         <h2 id="start-title">Start a puzzle</h2>
-        <p class="start-lead">Choose how many pieces you want.</p>
+        <p class="start-lead" data-testid="start-lead">
+          Choose how many pieces, then drag them to connect tabs and snap groups onto the board outline.
+        </p>
         <div
           class="piece-options"
           role="radiogroup"
