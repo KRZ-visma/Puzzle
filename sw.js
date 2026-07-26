@@ -13,6 +13,7 @@ const SHELL = [
   "./css/tokens.css",
   "./css/base.css",
   "./css/chrome.css",
+  "./css/menu.css",
   "./css/playfield.css",
   "./css/modals.css",
   "./css/pwa.css",

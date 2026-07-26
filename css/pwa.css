@@ -1,17 +1,4 @@
-/* PWA chrome: version label and update banner */
-
-.app-footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 0 0.75rem 0.45rem;
-  width: 100%;
-  flex: 0 0 auto;
-}
+/* PWA chrome: version label styling and update banner */
 
 .version-label {
   margin: 0;
@@ -57,10 +44,4 @@
   font-weight: 700;
   color: var(--ink);
   font-size: 0.95rem;
-}
-
-@media (max-width: 600px) {
-  .app-footer {
-    padding-inline: 1rem;
-  }
 }

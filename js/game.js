@@ -9,7 +9,7 @@ import {
   snapGroupToBoard,
   snapGroupToNeighbors,
 } from "./snap.js";
-import { setStatus, updateProgress, showPreview, showWin } from "./ui.js";
+import { getSelectedDifficulty, setStatus, updateProgress, showPreview, showWin } from "./ui.js";
 import { neighborId, neighborOffset, solvedPosition } from "./geometry.js";
 
 /**
@@ -116,7 +116,7 @@ export function createGame() {
 
   function newGame() {
     const chosen =
-      DIFFICULTIES[els.difficulty.value] || DIFFICULTIES[DEFAULT_DIFFICULTY];
+      DIFFICULTIES[getSelectedDifficulty()] || DIFFICULTIES[DEFAULT_DIFFICULTY];
     cols = chosen.cols;
     rows = chosen.rows;
     seed = (Date.now() ^ (cols * 997) ^ (rows * 131)) >>> 0 || 1;
