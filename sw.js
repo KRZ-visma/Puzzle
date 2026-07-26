@@ -20,6 +20,7 @@ const SHELL = [
   "./js/config.js",
   "./js/utils.js",
   "./js/storage.js",
+  "./js/settings.js",
   "./js/rng.js",
   "./js/geometry.js",
   "./js/groups.js",

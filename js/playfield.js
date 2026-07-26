@@ -290,6 +290,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
   return {
     setImage(img) {
       image = img;
+      scheduleDraw();
     },
 
     reset({ cols: c, rows: r, groups: g, seed = 1, scatterRng }) {

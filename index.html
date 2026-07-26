@@ -101,6 +101,73 @@
       </div>
     </div>
 
+    <div id="start-modal" class="modal" data-testid="start-modal">
+      <div class="modal-card start-card" role="dialog" aria-modal="true" aria-labelledby="start-title">
+        <h2 id="start-title">Start a puzzle</h2>
+        <p class="start-lead">Choose how many pieces you want.</p>
+        <div
+          class="piece-options"
+          role="radiogroup"
+          aria-label="Number of pieces"
+          data-testid="piece-options"
+        >
+          <button
+            type="button"
+            class="piece-option"
+            data-pieces="12"
+            data-testid="piece-option-12"
+            aria-pressed="false"
+          >
+            <span class="piece-option-count">12</span>
+            <span class="piece-option-grid">4×3</span>
+          </button>
+          <button
+            type="button"
+            class="piece-option"
+            data-pieces="48"
+            data-testid="piece-option-48"
+            aria-pressed="false"
+          >
+            <span class="piece-option-count">48</span>
+            <span class="piece-option-grid">8×6</span>
+          </button>
+          <button
+            type="button"
+            class="piece-option"
+            data-pieces="100"
+            data-testid="piece-option-100"
+            aria-pressed="false"
+          >
+            <span class="piece-option-count">100</span>
+            <span class="piece-option-grid">12×8</span>
+          </button>
+          <button
+            type="button"
+            class="piece-option"
+            data-pieces="500"
+            data-testid="piece-option-500"
+            aria-pressed="false"
+          >
+            <span class="piece-option-count">500</span>
+            <span class="piece-option-grid">25×20</span>
+          </button>
+          <button
+            type="button"
+            class="piece-option"
+            data-pieces="1000"
+            data-testid="piece-option-1000"
+            aria-pressed="false"
+          >
+            <span class="piece-option-count">1000</span>
+            <span class="piece-option-grid">40×25</span>
+          </button>
+        </div>
+        <button type="button" id="start-btn" class="btn btn-primary start-btn" data-testid="start-puzzle">
+          Start puzzle
+        </button>
+      </div>
+    </div>
+
     <script type="module" src="js/main.js"></script>
   </body>
 </html>
