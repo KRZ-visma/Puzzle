@@ -10,7 +10,9 @@ async function openGame(page, { pieces = 12 } = {}) {
     return page.evaluate(() => window.__PUZZLE__?.getState()?.total ?? 0);
   }).toBe(pieces);
   await expect(page.getByTestId("playfield")).toBeVisible();
-  await expect(page.getByTestId("progress")).toContainText(`0/${pieces}`);
+  await expect.poll(async () => {
+    return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? -1);
+  }).toBe(0);
 }
 
 test.describe("Jigsaw playfield flows", () => {
@@ -24,14 +26,25 @@ test.describe("Jigsaw playfield flows", () => {
     await expect(page.getByTestId("status")).toHaveText("");
   });
 
-  test("loads a new game with canvas playfield and version", async ({ page }) => {
+  test("loads a new game with canvas playfield and version in the menu", async ({ page }) => {
     await openGame(page, { pieces: 12 });
+    await expect(page.getByTestId("menu-toggle")).toBeVisible();
+    await expect(page.getByTestId("shuffle")).toHaveCount(0);
+    await expect(page.getByTestId("difficulty")).toHaveCount(0);
+    await expect(page.getByTestId("progress")).toHaveCount(0);
+    await expect(page.getByTestId("group-count")).toHaveCount(0);
+
+    await page.getByTestId("menu-toggle").click();
+    await expect(page.getByTestId("app-menu")).toBeVisible();
+    await expect(page.getByTestId("restart")).toBeVisible();
+    await expect(page.getByTestId("preview")).toBeVisible();
     await expect(page.getByTestId("app-version")).toHaveText(/^(dev|.+)$/);
-    await expect(page.getByTestId("group-count")).toHaveText("12");
-    await expect(page.getByTestId("status")).toHaveText("");
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.groups ?? 0);
+    }).toBe(12);
   });
 
-  test("fits the playfield in the viewport without page scroll", async ({ page }) => {
+  test("fits a full-bleed playfield in the viewport without page scroll", async ({ page }) => {
     await openGame(page, { pieces: 12 });
 
     const viewport = await page.locator('meta[name="viewport"]').getAttribute("content");
@@ -44,32 +57,42 @@ test.describe("Jigsaw playfield flows", () => {
     const metrics = await page.evaluate(() => {
       const doc = document.documentElement;
       const box = document.querySelector("[data-testid='playfield']")?.getBoundingClientRect();
+      const panel = document.querySelector(".playfield-panel")?.getBoundingClientRect();
       return {
         scrollHeight: doc.scrollHeight,
         clientHeight: doc.clientHeight,
+        clientWidth: doc.clientWidth,
         bodyOverflow: getComputedStyle(document.body).overflow,
         playfieldHeight: box?.height ?? 0,
         playfieldWidth: box?.width ?? 0,
+        panelHeight: panel?.height ?? 0,
+        panelWidth: panel?.width ?? 0,
       };
     });
 
     expect(metrics.bodyOverflow).toMatch(/hidden/);
     expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.clientHeight + 1);
-    expect(metrics.playfieldWidth).toBeGreaterThanOrEqual(900);
-    expect(metrics.playfieldHeight).toBeGreaterThanOrEqual(400);
+    expect(metrics.panelWidth).toBeGreaterThanOrEqual(metrics.clientWidth - 2);
+    expect(metrics.panelHeight).toBeGreaterThanOrEqual(metrics.clientHeight - 2);
+    expect(metrics.playfieldWidth).toBeGreaterThanOrEqual(metrics.clientWidth - 2);
+    expect(metrics.playfieldHeight).toBeGreaterThanOrEqual(metrics.clientHeight - 2);
   });
 
-  test("assembling a piece onto the board updates progress", async ({ page }) => {
+  test("assembling a piece onto the board updates progress state", async ({ page }) => {
     await openGame(page, { pieces: 12 });
     await page.evaluate(() => window.__PUZZLE__.assemblePiece(0));
-    await expect(page.getByTestId("progress")).toContainText("1/12");
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? 0);
+    }).toBe(1);
     await expect(page.getByTestId("status")).toContainText(/Snapped to the board|Keep connecting|Drag pieces/i);
   });
 
   test("connecting neighbors reduces group count", async ({ page }) => {
     await openGame(page, { pieces: 12 });
     await page.evaluate(() => window.__PUZZLE__.connectNeighbors(0, "right"));
-    await expect(page.getByTestId("group-count")).toHaveText("11");
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.groups ?? 0);
+    }).toBe(11);
   });
 
   test("solving the puzzle shows the win modal", async ({ page }) => {
@@ -77,17 +100,28 @@ test.describe("Jigsaw playfield flows", () => {
     await page.evaluate(() => window.__PUZZLE__.solve());
     await expect(page.getByTestId("win-modal")).toBeVisible();
     await expect(page.getByTestId("status")).toHaveText("Puzzle complete!");
-    await expect(page.getByTestId("progress")).toContainText("12/12");
-    await expect(page.getByTestId("group-count")).toHaveText("1");
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? 0);
+    }).toBe(12);
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.groups ?? 0);
+    }).toBe(1);
   });
 
-  test("play again returns to the start menu", async ({ page }) => {
+  test("play again and restart return to the start menu", async ({ page }) => {
     await openGame(page, { pieces: 12 });
     await page.evaluate(() => window.__PUZZLE__.solve());
     await page.getByTestId("play-again").click();
     await expect(page.getByTestId("win-modal")).toBeHidden();
     await expect(page.getByTestId("start-modal")).toBeVisible();
     await expect(page.getByTestId("piece-option-12")).toHaveAttribute("aria-pressed", "true");
+
+    await page.getByTestId("start-puzzle").click();
+    await expect(page.getByTestId("start-modal")).toBeHidden();
+    await page.getByTestId("menu-toggle").click();
+    await page.getByTestId("restart").click();
+    await expect(page.getByTestId("start-modal")).toBeVisible();
+    await expect(page.getByTestId("app-menu")).toBeHidden();
   });
 
   test("remembers piece count when the app is reopened", async ({ page }) => {
@@ -101,31 +135,19 @@ test.describe("Jigsaw playfield flows", () => {
     await page.reload();
     await expect(page.getByTestId("start-modal")).toBeVisible();
     await expect(page.getByTestId("piece-option-48")).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByTestId("difficulty")).toHaveValue("48");
 
     await page.getByTestId("start-puzzle").click();
     await expect.poll(async () => {
       return page.evaluate(() => window.__PUZZLE__?.getState()?.total ?? 0);
     }).toBe(48);
-    await expect(page.getByTestId("progress")).toContainText("0/48");
   });
 
-  test("shuffle and difficulty change rebuild the playfield", async ({ page }) => {
+  test("preview opens from the hamburger menu", async ({ page }) => {
     await openGame(page, { pieces: 12 });
-    await page.evaluate(() => window.__PUZZLE__.assemblePiece(1));
-    await expect(page.getByTestId("progress")).toContainText("1/12");
-
-    await page.getByTestId("shuffle").click();
-    await expect.poll(async () => {
-      return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? -1);
-    }).toBe(0);
-    await expect(page.getByTestId("group-count")).toHaveText("12");
-
-    await page.getByTestId("difficulty").selectOption("48");
-    await expect.poll(async () => {
-      return page.evaluate(() => window.__PUZZLE__?.getState()?.total ?? 0);
-    }).toBe(48);
-    await expect(page.getByTestId("progress")).toContainText("0/48");
+    await page.getByTestId("menu-toggle").click();
+    await page.getByTestId("preview").click();
+    await expect(page.getByTestId("preview-modal")).toBeVisible();
+    await expect(page.getByTestId("app-menu")).toBeHidden();
   });
 
   test("1000-piece difficulty initializes without crashing", async ({ page }) => {
@@ -134,6 +156,5 @@ test.describe("Jigsaw playfield flows", () => {
       return page.evaluate(() => window.__PUZZLE__?.getState()?.total ?? 0);
     }, { timeout: 30_000 }).toBe(1000);
     await expect(page.getByTestId("playfield")).toBeVisible();
-    await expect(page.getByTestId("progress")).toContainText("0/1000");
   });
 });

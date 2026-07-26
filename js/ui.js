@@ -1,39 +1,62 @@
+import { DEFAULT_DIFFICULTY } from "./config.js";
 import { els } from "./dom.js";
 import { normalizeDifficulty } from "./settings.js";
 
-/** Status text, progress counters, and modal chrome. */
+/** Status text, menu, and modal chrome. */
+
+let selectedDifficulty = DEFAULT_DIFFICULTY;
 
 export function setStatus(message) {
+  if (!els.status) return;
   els.status.textContent = message;
 }
 
-export function updateProgress(placed, total, groups) {
-  els.placedCount.textContent = String(placed);
-  els.totalCount.textContent = String(total);
-  if (els.groupCount && groups != null) {
-    els.groupCount.textContent = String(groups);
-  }
-}
+/** Progress is tracked in game state only — no on-canvas counters. */
+export function updateProgress(_placed, _total, _groups) {}
 
 export function showPreview(visible) {
   els.previewModal.hidden = !visible;
+  if (visible) closeAppMenu();
 }
 
 export function showWin(visible) {
   els.winModal.hidden = !visible;
+  if (visible) closeAppMenu();
 }
 
 export function showStartMenu(visible) {
   if (!els.startModal) return;
   els.startModal.hidden = !visible;
+  if (visible) closeAppMenu();
 }
 
-/** Sync header select + start-menu options to a piece count. */
+export function isAppMenuOpen() {
+  return Boolean(els.appMenu && !els.appMenu.hidden);
+}
+
+export function openAppMenu() {
+  if (!els.appMenu || !els.menuToggle) return;
+  els.appMenu.hidden = false;
+  els.menuToggle.setAttribute("aria-expanded", "true");
+  els.menuToggle.setAttribute("aria-label", "Close menu");
+}
+
+export function closeAppMenu() {
+  if (!els.appMenu || !els.menuToggle) return;
+  els.appMenu.hidden = true;
+  els.menuToggle.setAttribute("aria-expanded", "false");
+  els.menuToggle.setAttribute("aria-label", "Open menu");
+}
+
+export function toggleAppMenu() {
+  if (isAppMenuOpen()) closeAppMenu();
+  else openAppMenu();
+}
+
+/** Sync start-menu options to a piece count. */
 export function setDifficultyControls(value) {
   const n = normalizeDifficulty(value);
-  if (els.difficulty) {
-    els.difficulty.value = String(n);
-  }
+  selectedDifficulty = n;
   for (const btn of els.pieceOptions) {
     const selected = Number(btn.dataset.pieces) === n;
     btn.setAttribute("aria-pressed", selected ? "true" : "false");
@@ -43,29 +66,43 @@ export function setDifficultyControls(value) {
 }
 
 export function getSelectedDifficulty() {
-  return normalizeDifficulty(els.difficulty?.value);
+  return normalizeDifficulty(selectedDifficulty);
 }
 
 export function bindChrome({
-  onShuffle,
+  onRestart,
   onPlayAgain,
-  onDifficultyChange,
   onStartPuzzle,
   onPieceOptionSelect,
 }) {
-  els.difficulty.addEventListener("change", onDifficultyChange);
-  els.shuffleBtn.addEventListener("click", onShuffle);
-  els.playAgain.addEventListener("click", onPlayAgain);
+  els.menuToggle?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleAppMenu();
+  });
 
-  els.previewBtn.addEventListener("click", () => showPreview(true));
-  els.closePreview.addEventListener("click", () => showPreview(false));
+  els.restartBtn?.addEventListener("click", () => {
+    closeAppMenu();
+    onRestart?.();
+  });
 
-  els.previewModal.addEventListener("click", (event) => {
+  els.playAgain?.addEventListener("click", onPlayAgain);
+
+  els.previewBtn?.addEventListener("click", () => showPreview(true));
+  els.closePreview?.addEventListener("click", () => showPreview(false));
+
+  els.previewModal?.addEventListener("click", (event) => {
     if (event.target === els.previewModal) showPreview(false);
   });
 
-  els.winModal.addEventListener("click", (event) => {
+  els.winModal?.addEventListener("click", (event) => {
     if (event.target === els.winModal) showWin(false);
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!isAppMenuOpen()) return;
+    const target = event.target;
+    if (els.appMenu?.contains(target) || els.menuToggle?.contains(target)) return;
+    closeAppMenu();
   });
 
   for (const btn of els.pieceOptions) {
