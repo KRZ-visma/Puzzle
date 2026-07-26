@@ -10,12 +10,20 @@ body {
   min-height: 100%;
 }
 
+html {
+  /* Prefer pan/tap over browser pinch / double-tap zoom chrome. */
+  touch-action: manipulation;
+}
+
 body {
   font-family: var(--font-body);
   color: var(--ink);
   background: var(--sky-bottom);
   min-height: 100vh;
   overflow-x: hidden;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .sky {
