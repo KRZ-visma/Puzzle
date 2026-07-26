@@ -12,6 +12,7 @@ import {
   setAppVersion,
   showUpdateBanner,
   bindUpdateBanner,
+  closeAppMenu,
 } from "./ui.js";
 import { applyUpdate, initPwa } from "./pwa.js";
 import { loadDifficultyPreference, saveDifficultyPreference } from "./settings.js";
@@ -32,8 +33,13 @@ setDifficultyControls(savedDifficulty);
 setStatus("");
 showStartMenu(true);
 
-function isStartMenuOpen() {
-  return Boolean(els.startModal && !els.startModal.hidden);
+function returnToStartMenu() {
+  showWin(false);
+  showPreview(false);
+  closeAppMenu();
+  setDifficultyControls(loadDifficultyPreference());
+  showStartMenu(true);
+  setStatus("");
 }
 
 function startPuzzleFromMenu() {
@@ -45,22 +51,8 @@ function startPuzzleFromMenu() {
 }
 
 bindChrome({
-  onShuffle: () => {
-    if (isStartMenuOpen()) return;
-    game.newGame();
-  },
-  onPlayAgain: () => {
-    showWin(false);
-    setDifficultyControls(loadDifficultyPreference());
-    showStartMenu(true);
-    setStatus("");
-  },
-  onDifficultyChange: () => {
-    const n = saveDifficultyPreference(getSelectedDifficulty());
-    setDifficultyControls(n);
-    if (isStartMenuOpen()) return;
-    game.newGame();
-  },
+  onRestart: () => returnToStartMenu(),
+  onPlayAgain: () => returnToStartMenu(),
   onPieceOptionSelect: (n) => {
     saveDifficultyPreference(n);
   },
@@ -69,6 +61,7 @@ bindChrome({
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
+    closeAppMenu();
     showPreview(false);
     showWin(false);
     game.clearSelection();

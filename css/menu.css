@@ -1,0 +1,127 @@
+/* Floating hamburger + dropdown used while puzzling. */
+
+.chrome-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.75rem;
+  pointer-events: none;
+}
+
+.chrome-bar .brand,
+.chrome-bar .menu-wrap {
+  pointer-events: auto;
+}
+
+.chrome-bar .brand h1 {
+  font-size: clamp(1.35rem, 3.5vw, 1.75rem);
+  text-shadow: 0 1px 0 rgba(255, 252, 245, 0.65);
+}
+
+.menu-wrap {
+  position: relative;
+}
+
+.menu-toggle {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  padding: 0;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-solid);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.menu-toggle:hover {
+  border-color: rgba(90, 158, 75, 0.45);
+}
+
+.menu-toggle-bars,
+.menu-toggle-bars::before,
+.menu-toggle-bars::after {
+  display: block;
+  width: 1.1rem;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.menu-toggle-bars {
+  position: relative;
+}
+
+.menu-toggle-bars::before,
+.menu-toggle-bars::after {
+  content: "";
+  position: absolute;
+  left: 0;
+}
+
+.menu-toggle-bars::before {
+  top: -5px;
+}
+
+.menu-toggle-bars::after {
+  top: 5px;
+}
+
+.app-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  min-width: 11.5rem;
+  padding: 0.4rem;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-solid);
+  box-shadow: var(--shadow);
+  animation: rise 0.2s ease;
+}
+
+.app-menu[hidden] {
+  display: none;
+}
+
+.app-menu-item {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.65rem 0.8rem;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.app-menu-item:hover,
+.app-menu-item:focus-visible {
+  background: rgba(90, 158, 75, 0.12);
+  outline: none;
+}
+
+.app-menu-version {
+  margin: 0.35rem 0.35rem 0.2rem;
+  padding: 0.45rem 0.45rem 0.2rem;
+  border-top: 1px solid rgba(31, 58, 46, 0.12);
+  font-size: 0.8rem;
+}
+
+@media (max-width: 600px) {
+  .chrome-bar {
+    padding: 0.45rem 0.55rem;
+  }
+}

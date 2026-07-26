@@ -26,40 +26,40 @@
   <body>
     <div class="sky" aria-hidden="true"></div>
 
-    <header class="top-bar">
+    <header class="chrome-bar">
       <div class="brand">
         <span class="brand-mark" aria-hidden="true"></span>
         <h1>Puzzle</h1>
       </div>
-      <div class="controls">
-        <label class="control">
-          <span>Pieces</span>
-          <select id="difficulty" data-testid="difficulty" aria-label="Number of pieces">
-            <option value="12">12 (4×3)</option>
-            <option value="48">48 (8×6)</option>
-            <option value="100" selected>100 (12×8)</option>
-            <option value="500">500 (25×20)</option>
-            <option value="1000">1000 (40×25)</option>
-          </select>
-        </label>
-        <button type="button" id="shuffle-btn" class="btn btn-secondary" data-testid="shuffle">
-          Shuffle
+      <div class="menu-wrap">
+        <button
+          type="button"
+          id="menu-toggle"
+          class="menu-toggle"
+          data-testid="menu-toggle"
+          aria-label="Open menu"
+          aria-expanded="false"
+          aria-controls="app-menu"
+        >
+          <span class="menu-toggle-bars" aria-hidden="true"></span>
         </button>
-        <button type="button" id="preview-btn" class="btn btn-ghost" data-testid="preview">
-          Preview
-        </button>
+        <div id="app-menu" class="app-menu" hidden data-testid="app-menu" role="menu">
+          <button type="button" id="restart-btn" class="app-menu-item" data-testid="restart" role="menuitem">
+            Restart
+          </button>
+          <button type="button" id="preview-btn" class="app-menu-item" data-testid="preview" role="menuitem">
+            Preview
+          </button>
+          <p class="app-menu-version version-label">
+            Version <code id="app-version" data-testid="app-version">…</code>
+          </p>
+        </div>
       </div>
     </header>
 
     <main class="stage stage-playfield">
       <section class="playfield-panel" aria-label="Jigsaw playfield">
-        <div class="status-row">
-          <p id="status" class="status" data-testid="status"></p>
-          <p class="progress" aria-live="polite" data-testid="progress">
-            <span id="placed-count">0</span>/<span id="total-count">0</span>
-            <span class="groups-label">· <span id="group-count" data-testid="group-count">0</span> groups</span>
-          </p>
-        </div>
+        <p id="status" class="status visually-hidden" data-testid="status" aria-live="polite"></p>
         <canvas
           id="playfield"
           class="playfield"
@@ -69,12 +69,6 @@
         ></canvas>
       </section>
     </main>
-
-    <footer class="app-footer">
-      <p class="version-label">
-        Version <code id="app-version" data-testid="app-version">…</code>
-      </p>
-    </footer>
 
     <div id="update-banner" class="update-banner" hidden role="status" aria-live="polite" data-testid="update-banner">
       <p>A new version is available.</p>
