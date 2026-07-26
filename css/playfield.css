@@ -2,8 +2,9 @@
 
 .stage-playfield {
   grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 1fr);
   max-width: 1600px;
-  padding: 0.35rem 0.75rem 0.75rem;
+  padding: 0.25rem 0.75rem 0.35rem;
 }
 
 .playfield-panel {
@@ -12,15 +13,20 @@
   border: 1px solid rgba(255, 255, 255, 0.55);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 0.65rem 0.75rem 0.75rem;
+  padding: 0.5rem 0.75rem 0.65rem;
   animation: rise 0.55s ease both;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
 }
 
 .playfield {
   display: block;
   width: 100%;
-  /* Fill most of the viewport below chrome so the puzzle reads large. */
-  height: min(calc(100dvh - 8.75rem), 1000px);
+  /* Fill leftover viewport under header/status/footer — no page scroll. */
+  flex: 1 1 0;
+  min-height: 0;
   touch-action: none;
   user-select: none;
   cursor: grab;
@@ -45,15 +51,11 @@
 
 @media (max-width: 600px) {
   .stage-playfield {
-    padding: 0.25rem 0.5rem 0.6rem;
+    padding: 0.2rem 0.5rem 0.3rem;
   }
 
   .playfield-panel {
-    padding: 0.5rem;
-  }
-
-  .playfield {
-    height: min(calc(100dvh - 10.5rem), 780px);
+    padding: 0.45rem 0.5rem 0.5rem;
   }
 
   .groups-label {

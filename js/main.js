@@ -29,7 +29,7 @@ if (new URLSearchParams(window.location.search).get("e2e") === "1") {
 
 const savedDifficulty = loadDifficultyPreference();
 setDifficultyControls(savedDifficulty);
-setStatus("Choose how many pieces to begin.");
+setStatus("");
 showStartMenu(true);
 
 function isStartMenuOpen() {
@@ -53,7 +53,7 @@ bindChrome({
     showWin(false);
     setDifficultyControls(loadDifficultyPreference());
     showStartMenu(true);
-    setStatus("Choose how many pieces to begin.");
+    setStatus("");
   },
   onDifficultyChange: () => {
     const n = saveDifficultyPreference(getSelectedDifficulty());

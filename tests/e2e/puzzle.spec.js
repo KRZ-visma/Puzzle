@@ -19,17 +19,19 @@ test.describe("Jigsaw playfield flows", () => {
     await expect(page.getByTestId("start-modal")).toBeVisible();
     await expect(page.getByTestId("piece-options")).toBeVisible();
     await expect(page.getByTestId("start-puzzle")).toBeVisible();
-    await expect(page.getByTestId("status")).toContainText(/Choose how many pieces/i);
+    await expect(page.getByTestId("start-lead")).toContainText(/Choose how many pieces/i);
+    await expect(page.getByTestId("start-lead")).toContainText(/connect tabs/i);
+    await expect(page.getByTestId("status")).toHaveText("");
   });
 
   test("loads a new game with canvas playfield and version", async ({ page }) => {
     await openGame(page, { pieces: 12 });
-    await expect(page.getByTestId("status")).toContainText(/Drag pieces|Shuffling|Cutting/i);
     await expect(page.getByTestId("app-version")).toHaveText(/^(dev|.+)$/);
     await expect(page.getByTestId("group-count")).toHaveText("12");
+    await expect(page.getByTestId("status")).toHaveText("");
   });
 
-  test("uses a large playfield and disables page zoom and text selection", async ({ page }) => {
+  test("fits the playfield in the viewport without page scroll", async ({ page }) => {
     await openGame(page, { pieces: 12 });
 
     const viewport = await page.locator('meta[name="viewport"]').getAttribute("content");
@@ -39,10 +41,22 @@ test.describe("Jigsaw playfield flows", () => {
     const userSelect = await page.evaluate(() => getComputedStyle(document.body).userSelect);
     expect(userSelect).toBe("none");
 
-    const box = await page.getByTestId("playfield").boundingBox();
-    expect(box).not.toBeNull();
-    expect(box.width).toBeGreaterThanOrEqual(900);
-    expect(box.height).toBeGreaterThanOrEqual(520);
+    const metrics = await page.evaluate(() => {
+      const doc = document.documentElement;
+      const box = document.querySelector("[data-testid='playfield']")?.getBoundingClientRect();
+      return {
+        scrollHeight: doc.scrollHeight,
+        clientHeight: doc.clientHeight,
+        bodyOverflow: getComputedStyle(document.body).overflow,
+        playfieldHeight: box?.height ?? 0,
+        playfieldWidth: box?.width ?? 0,
+      };
+    });
+
+    expect(metrics.bodyOverflow).toMatch(/hidden/);
+    expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.clientHeight + 1);
+    expect(metrics.playfieldWidth).toBeGreaterThanOrEqual(900);
+    expect(metrics.playfieldHeight).toBeGreaterThanOrEqual(400);
   });
 
   test("assembling a piece onto the board updates progress", async ({ page }) => {

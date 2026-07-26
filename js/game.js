@@ -141,7 +141,7 @@ export function createGame() {
         scatterRng: createRng(seed ^ 0x9e3779b9),
       });
       refreshProgress();
-      setStatus("Drag pieces to connect tabs. Snap groups onto the faint board outline.");
+      setStatus("");
     });
   }
 
