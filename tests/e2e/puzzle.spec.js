@@ -605,4 +605,87 @@ test.describe("Jigsaw playfield flows", () => {
     expect(after.p2).not.toEqual(before.p2);
     expect(after.piece2Overlaps).toBe(false);
   });
+
+  test("clear-area button moves pieces sitting in the one-piece border margin", async ({ page }) => {
+    await openGame(page, { pieces: 12 });
+
+    const before = await page.evaluate(() => {
+      const state = window.__PUZZLE__.getState();
+      const { originX, originY, pieceW, pieceH } = state.layout;
+      const p0 = state.positions[0];
+      // Park just above the board, inside the one-piece keep-out strip
+      // (maxY = originY - 8 → outside board, still inside keepOut).
+      window.__PUZZLE__.tryMoveGroup(
+        0,
+        originX + 8 - p0.x,
+        originY - pieceH - 8 - p0.y
+      );
+      const next = window.__PUZZLE__.getState();
+      const board = {
+        minX: originX,
+        minY: originY,
+        maxX: originX + next.cols * pieceW,
+        maxY: originY + next.rows * pieceH,
+      };
+      const keepOut = {
+        minX: board.minX - pieceW,
+        minY: board.minY - pieceH,
+        maxX: board.maxX + pieceW,
+        maxY: board.maxY + pieceH,
+      };
+      const body = {
+        minX: next.positions[0].x,
+        minY: next.positions[0].y,
+        maxX: next.positions[0].x + pieceW,
+        maxY: next.positions[0].y + pieceH,
+      };
+      const overlaps = (a, b) =>
+        !(a.maxX <= b.minX || a.minX >= b.maxX || a.maxY <= b.minY || a.minY >= b.maxY);
+      return {
+        pos: { ...next.positions[0] },
+        overlapsBoard: overlaps(body, board),
+        overlapsKeepOut: overlaps(body, keepOut),
+      };
+    });
+    expect(before.overlapsBoard).toBe(false);
+    expect(before.overlapsKeepOut).toBe(true);
+
+    await page.getByTestId("clear-area").click();
+
+    const after = await page.evaluate(() => {
+      const state = window.__PUZZLE__.getState();
+      const { originX, originY, pieceW, pieceH } = state.layout;
+      const board = {
+        minX: originX,
+        minY: originY,
+        maxX: originX + state.cols * pieceW,
+        maxY: originY + state.rows * pieceH,
+      };
+      const keepOut = {
+        minX: board.minX - pieceW,
+        minY: board.minY - pieceH,
+        maxX: board.maxX + pieceW,
+        maxY: board.maxY + pieceH,
+      };
+      const body = {
+        minX: state.positions[0].x,
+        minY: state.positions[0].y,
+        maxX: state.positions[0].x + pieceW,
+        maxY: state.positions[0].y + pieceH,
+      };
+      const overlaps = (a, b) =>
+        !(a.maxX <= b.minX || a.minX >= b.maxX || a.maxY <= b.minY || a.minY >= b.maxY);
+      const gapX = Math.max(0, Math.max(board.minX - body.maxX, body.minX - board.maxX));
+      const gapY = Math.max(0, Math.max(board.minY - body.maxY, body.minY - board.maxY));
+      return {
+        pos: { ...state.positions[0] },
+        overlapsKeepOut: overlaps(body, keepOut),
+        hasOnePieceGap: gapX >= pieceW || gapY >= pieceH,
+      };
+    });
+
+    expect(after.pos).not.toEqual(before.pos);
+    expect(after.overlapsKeepOut).toBe(false);
+    expect(after.hasOnePieceGap).toBe(true);
+  });
 });
