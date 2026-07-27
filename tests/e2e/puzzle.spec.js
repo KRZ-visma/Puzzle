@@ -103,6 +103,12 @@ test.describe("Jigsaw playfield flows", () => {
     await expect.poll(async () => {
       return page.evaluate(() => window.__PUZZLE__?.getState()?.baskets?.baskets?.length ?? 0);
     }).toBe(1);
+    await expect.poll(async () => {
+      return page.evaluate(() => {
+        const basket = window.__PUZZLE__?.getState()?.baskets?.baskets?.[0];
+        return basket ? Math.min(basket.w, basket.h) : 0;
+      });
+    }).toBeGreaterThanOrEqual(160);
 
     const moved = await page.evaluate(() => {
       const state = window.__PUZZLE__.getState();
