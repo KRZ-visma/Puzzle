@@ -463,7 +463,10 @@ test.describe("Jigsaw playfield flows", () => {
         maxY: originY + rows * pieceH,
       };
       let overlapsBoard = false;
-      for (const pos of state.positions) {
+      let clearedMinGap = Infinity;
+      const clearedIds = [0, 1];
+      for (let id = 0; id < state.positions.length; id += 1) {
+        const pos = state.positions[id];
         const body = {
           minX: pos.x,
           minY: pos.y,
@@ -477,6 +480,12 @@ test.describe("Jigsaw playfield flows", () => {
           body.minY >= board.maxY
         );
         if (hit) overlapsBoard = true;
+        if (clearedIds.includes(id)) {
+          const gapX = Math.max(0, Math.max(board.minX - body.maxX, body.minX - board.maxX));
+          const gapY = Math.max(0, Math.max(board.minY - body.maxY, body.minY - board.maxY));
+          const gap = gapX > 0 && gapY > 0 ? Math.min(gapX, gapY) : gapX + gapY;
+          clearedMinGap = Math.min(clearedMinGap, gap);
+        }
       }
       return {
         groups: state.groups,
@@ -485,11 +494,15 @@ test.describe("Jigsaw playfield flows", () => {
           y: state.positions[1].y - state.positions[0].y,
         },
         overlapsBoard,
+        clearedMinGap,
+        pieceW,
+        pieceH,
       };
     });
 
     expect(after.groups).toBe(before.groups);
     expect(after.offset).toEqual(before.offset);
     expect(after.overlapsBoard).toBe(false);
+    expect(after.clearedMinGap).toBeGreaterThanOrEqual(Math.min(after.pieceW, after.pieceH));
   });
 });
