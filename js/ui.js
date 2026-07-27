@@ -94,12 +94,21 @@ export function setPreviewImage(src) {
   els.previewImage.src = src;
 }
 
+export function setZoomLabel(scale) {
+  if (!els.zoomResetBtn) return;
+  const pct = Math.round((Number(scale) || 1) * 100);
+  els.zoomResetBtn.textContent = `${pct}%`;
+}
+
 export function bindChrome({
   onRestart,
   onPlayAgain,
   onStartPuzzle,
   onPieceOptionSelect,
   onImageOptionSelect,
+  onZoomIn,
+  onZoomOut,
+  onZoomReset,
 }) {
   els.menuToggle?.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -148,6 +157,10 @@ export function bindChrome({
   }
 
   els.startBtn?.addEventListener("click", () => onStartPuzzle?.());
+
+  els.zoomInBtn?.addEventListener("click", () => onZoomIn?.());
+  els.zoomOutBtn?.addEventListener("click", () => onZoomOut?.());
+  els.zoomResetBtn?.addEventListener("click", () => onZoomReset?.());
 }
 
 export function setAppVersion(version) {

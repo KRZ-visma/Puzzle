@@ -21,6 +21,7 @@ import {
   getSelectedDifficulty,
   getSelectedImageId,
   setStatus,
+  setZoomLabel,
   updateProgress,
   showPreview,
   showWin,
@@ -49,7 +50,16 @@ export function createGame() {
     onDragEnd(pieceId) {
       afterDrop(pieceId);
     },
+    onCameraChange(camera) {
+      setZoomLabel(camera.scale);
+    },
   });
+
+  function syncZoomLabel() {
+    setZoomLabel(playfield.getCamera().scale);
+  }
+
+  syncZoomLabel();
 
   function totalPieces() {
     return cols * rows;
@@ -182,6 +192,7 @@ export function createGame() {
         seed,
         scatterRng: createRng(seed ^ 0x9e3779b9),
       });
+      syncZoomLabel();
       refreshProgress();
       persist();
       setStatus("");
@@ -217,6 +228,7 @@ export function createGame() {
 
       const layout = playfield.getLayout();
       playfield.setPositions(deserializePositions(saved.positions, layout));
+      syncZoomLabel();
       refreshProgress();
       persist();
 
@@ -301,6 +313,34 @@ export function createGame() {
     if (document.visibilityState === "hidden") persist();
   });
 
+  function zoomIn() {
+    const camera = playfield.zoomIn();
+    syncZoomLabel();
+    return camera;
+  }
+
+  function zoomOut() {
+    const camera = playfield.zoomOut();
+    syncZoomLabel();
+    return camera;
+  }
+
+  function resetView() {
+    const camera = playfield.resetView();
+    syncZoomLabel();
+    return camera;
+  }
+
+  function getCamera() {
+    return playfield.getCamera();
+  }
+
+  function setCamera(next) {
+    const camera = playfield.setCamera(next);
+    syncZoomLabel();
+    return camera;
+  }
+
   return {
     newGame,
     restoreGame,
@@ -311,6 +351,11 @@ export function createGame() {
       image = img;
       playfield.setImage(img);
     },
+    zoomIn,
+    zoomOut,
+    resetView,
+    getCamera,
+    setCamera,
     // Test/debug mirrors
     assemblePiece,
     connectNeighbors,
@@ -318,6 +363,7 @@ export function createGame() {
     getState: () => {
       const layout = playfield.getLayout();
       const positions = playfield.getPositions();
+      const camera = playfield.getCamera();
       return {
         cols,
         rows,
@@ -336,6 +382,7 @@ export function createGame() {
         ),
         total: totalPieces(),
         positions: positions.map((p) => ({ ...p })),
+        camera,
       };
     },
   };
