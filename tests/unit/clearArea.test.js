@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   clearPuzzleArea,
   groupBounds,
+  keepOutBounds,
   rectsOverlap,
   translationOffBoard,
 } from "../../js/clearArea.js";
@@ -43,6 +44,16 @@ test("rectsOverlap detects board intersections", () => {
   assert.equal(rectsOverlap({ minX: 200, minY: 100, maxX: 220, maxY: 120 }, board), false);
 });
 
+test("keepOutBounds expands the board by one piece on each side", () => {
+  const board = { minX: 100, minY: 80, maxX: 300, maxY: 220 };
+  assert.deepEqual(keepOutBounds(board, 40, 30), {
+    minX: 60,
+    minY: 50,
+    maxX: 340,
+    maxY: 250,
+  });
+});
+
 test("translationOffBoard clears the board and prefers on-canvas placement", () => {
   const board = { minX: 100, minY: 80, maxX: 300, maxY: 220 };
   const bounds = { minX: 140, minY: 100, maxX: 180, maxY: 140, width: 40, height: 40 };
@@ -62,6 +73,7 @@ test("translationOffBoard clears the board and prefers on-canvas placement", () 
   assert.ok(bounds.maxY + dy <= 300);
   // At least one piece of clearance from the board border.
   assert.ok(axisGap(moved, board) >= Math.min(pieceW, pieceH));
+  assert.equal(rectsOverlap(moved, keepOutBounds(board, pieceW, pieceH)), false);
 });
 
 test("translationOffBoard leaves one piece of clearance on the move axis", () => {
@@ -94,7 +106,27 @@ test("translationOffBoard leaves one piece of clearance on the move axis", () =>
   }
 });
 
-test("translationOffBoard is a no-op when already clear", () => {
+test("translationOffBoard moves pieces that sit only in the border margin", () => {
+  const board = { minX: 100, minY: 100, maxX: 200, maxY: 200 };
+  const pieceW = 40;
+  const pieceH = 40;
+  // Outside the board, but inside the one-piece keep-out strip above it.
+  const bounds = { minX: 120, minY: 70, maxX: 160, maxY: 95, width: 40, height: 25 };
+  assert.equal(rectsOverlap(bounds, board), false);
+  assert.equal(rectsOverlap(bounds, keepOutBounds(board, pieceW, pieceH)), true);
+
+  const { dx, dy } = translationOffBoard(bounds, board, 400, 360, () => 0.5, pieceW, pieceH);
+  assert.ok(dx !== 0 || dy !== 0);
+  const moved = {
+    minX: bounds.minX + dx,
+    minY: bounds.minY + dy,
+    maxX: bounds.maxX + dx,
+    maxY: bounds.maxY + dy,
+  };
+  assert.equal(rectsOverlap(moved, keepOutBounds(board, pieceW, pieceH)), false);
+});
+
+test("translationOffBoard is a no-op when already clear of the keep-out zone", () => {
   const board = { minX: 100, minY: 100, maxX: 200, maxY: 200 };
   const bounds = { minX: 0, minY: 0, maxX: 40, maxY: 40, width: 40, height: 40 };
   assert.deepEqual(translationOffBoard(bounds, board, 400, 300, () => 0, 40, 40), { dx: 0, dy: 0 });
@@ -105,8 +137,9 @@ test("clearPuzzleArea moves overlapping groups while keeping relative offsets", 
   const positions = [
     { x: 100, y: 100 },
     { x: 140, y: 100 },
-    { x: 10, y: 10 },
-    { x: 200, y: 200 },
+    // Fully outside the keep-out margin (board 80–160, piece 40 → keepOut 40–200).
+    { x: 0, y: 0 },
+    { x: 250, y: 250 },
   ];
   mergeGroups(groups, positions, 1, 0, 0, 0);
   assert.equal(groupCount(groups), 3);
@@ -149,6 +182,56 @@ test("clearPuzzleArea moves overlapping groups while keeping relative offsets", 
   const group0 = groupBounds(membersOf(groups, 0), positions, pieceW, pieceH);
   assert.equal(rectsOverlap(group0, board), false);
   assert.ok(axisGap(group0, board) >= Math.min(pieceW, pieceH));
+  assert.equal(rectsOverlap(group0, keepOutBounds(board, pieceW, pieceH)), false);
+});
+
+test("clearPuzzleArea moves unlocked pieces that sit in the border margin", () => {
+  const pieceW = 40;
+  const pieceH = 40;
+  const originX = 80;
+  const originY = 80;
+  const cols = 2;
+  const rows = 2;
+  const board = {
+    minX: originX,
+    minY: originY,
+    maxX: originX + cols * pieceW,
+    maxY: originY + rows * pieceH,
+  };
+  const keepOut = keepOutBounds(board, pieceW, pieceH);
+  const groups = createGroups(4);
+  // Piece 0 sits just outside the board, inside the top margin strip.
+  // maxY = originY - 8 (no board overlap); still inside keepOut (minY = originY - pieceH).
+  const positions = [
+    { x: originX + 10, y: originY - pieceH - 8 },
+    { x: 0, y: 0 },
+    { x: 250, y: 250 },
+    { x: 300, y: 0 },
+  ];
+  assert.equal(rectsOverlap(groupBounds([0], positions, pieceW, pieceH), board), false);
+  assert.equal(rectsOverlap(groupBounds([0], positions, pieceW, pieceH), keepOut), true);
+
+  const marginBefore = { ...positions[0] };
+  const farBefore = { ...positions[1] };
+
+  const moved = clearPuzzleArea({
+    groups,
+    positions,
+    cols,
+    rows,
+    pieceW,
+    pieceH,
+    originX,
+    originY,
+    cssW: 400,
+    cssH: 320,
+    rng: () => 0.3,
+  });
+
+  assert.equal(moved, 1);
+  assert.notDeepEqual(positions[0], marginBefore);
+  assert.deepEqual(positions[1], farBefore);
+  assert.equal(rectsOverlap(groupBounds([0], positions, pieceW, pieceH), keepOut), false);
 });
 
 test("clearPuzzleArea leaves board-locked groups on their seats", () => {
@@ -163,8 +246,9 @@ test("clearPuzzleArea leaves board-locked groups on their seats", () => {
   const positions = [
     { x: originX, y: originY },
     { x: originX + 10, y: originY + 10 },
-    { x: 10, y: 10 },
-    { x: 220, y: 220 },
+    // Fully outside keep-out (board 80–160 → keepOut 40–200).
+    { x: 0, y: 0 },
+    { x: 250, y: 250 },
   ];
   const lockedBefore = { ...positions[0] };
   const unlockedBefore = { ...positions[1] };
@@ -216,7 +300,7 @@ test("clearPuzzleArea does not move a locked multi-piece group", () => {
     { x: originX, y: originY },
     { x: originX + pieceW, y: originY },
     { x: originX + 5, y: originY + pieceH + 5 },
-    { x: 10, y: 10 },
+    { x: 0, y: 0 },
   ];
   mergeGroups(groups, positions, 1, 0, 0, 0);
 
