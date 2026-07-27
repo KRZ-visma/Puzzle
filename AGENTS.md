@@ -80,7 +80,8 @@ These are project constraints. Follow them unless the user explicitly overrides 
 | `tests/unit/` | Fast pure-module tests |
 | `playwright.config.js` | Playwright config (serves static app) |
 | `package.json` | Dev-only test tooling |
-| `assets/puzzle.jpg` | Current puzzle image |
+| `assets/gallery/` | CC0 puzzle images + `LICENSES.md` |
+| `js/gallery.js` | Gallery catalog / image id helpers (pure) |
 | `assets/icons/` | PWA icons |
 | `README.md` | Human setup / Pages docs |
 | `AGENTS.md` | These instructions |
@@ -89,7 +90,8 @@ These are project constraints. Follow them unless the user explicitly overrides 
 
 | If you are changing… | Prefer editing… |
 |----------------------|------------------|
-| Difficulties / image path / snap–tab fractions | `js/config.js` |
+| Difficulties / snap–tab fractions | `js/config.js` |
+| Puzzle image catalog / selection | `js/gallery.js`, `js/settings.js`, start menu + `css/gallery.css` |
 | Save / load / settings persistence | `js/storage.js`, `js/settings.js`, `js/progress.js` |
 | Canvas draw / pointer / DPI / hit-test | `js/playfield.js` + `css/playfield.css` |
 | Tab/blank path math | `js/geometry.js` (+ unit tests) |
@@ -164,7 +166,6 @@ Piece ids are row-major: `id = row * cols + col`.
 
 Do not implement unless asked:
 
-- Multiple puzzle images / gallery
 - Timer, scoring, accounts
 - Sound effects, particle-heavy celebrations
 - Pinch-zoom / pan camera for very dense boards

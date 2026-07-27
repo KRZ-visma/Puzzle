@@ -1,5 +1,8 @@
-/** Shared game constants. Edit here when adding difficulties or images. */
-export const IMAGE_SRC = "assets/puzzle.jpg";
+/** Shared game constants. Edit here when adding difficulties. */
+import { DEFAULT_IMAGE_ID, getGalleryImage } from "./gallery.js";
+
+/** Default puzzle image path (first gallery entry). Prefer gallery helpers for selection. */
+export const IMAGE_SRC = getGalleryImage(DEFAULT_IMAGE_ID).src;
 
 /**
  * Piece counts for the interlocking canvas engine.

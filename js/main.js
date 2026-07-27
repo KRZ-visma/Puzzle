@@ -1,5 +1,4 @@
-import { IMAGE_SRC } from "./config.js";
-import { els } from "./dom.js";
+import { getGalleryImage } from "./gallery.js";
 import { createGame } from "./game.js";
 import { clearProgress, loadProgress } from "./progress.js";
 import {
@@ -10,14 +9,21 @@ import {
   showWin,
   showStartMenu,
   setDifficultyControls,
+  setImageControls,
   getSelectedDifficulty,
+  getSelectedImageId,
   setAppVersion,
   showUpdateBanner,
   bindUpdateBanner,
   closeAppMenu,
 } from "./ui.js";
 import { applyUpdate, initPwa } from "./pwa.js";
-import { loadDifficultyPreference, saveDifficultyPreference } from "./settings.js";
+import {
+  loadDifficultyPreference,
+  loadImagePreference,
+  saveDifficultyPreference,
+  saveImagePreference,
+} from "./settings.js";
 
 /**
  * App entry. Wire chrome controls, PWA updates, and start a game once the image is ready.
@@ -32,7 +38,9 @@ if (new URLSearchParams(window.location.search).get("e2e") === "1") {
 
 const savedProgress = loadProgress();
 const savedDifficulty = savedProgress?.difficulty ?? loadDifficultyPreference();
+const savedImageId = savedProgress?.imageId ?? loadImagePreference();
 setDifficultyControls(savedDifficulty);
+setImageControls(savedImageId);
 setStatus("");
 
 // Resume immediately when a valid save exists so pieces reopen in place.
@@ -42,31 +50,60 @@ if (savedProgress) {
   showStartMenu(true);
 }
 
+/**
+ * Load a gallery image into the game (and preview).
+ * @param {string} imageId
+ * @param {() => void} [onReady]
+ */
+function loadPuzzleImage(imageId, onReady) {
+  const entry = getGalleryImage(imageId);
+  const img = new Image();
+  img.onload = () => {
+    game.setImage(img);
+    setImageControls(entry.id);
+    onReady?.();
+  };
+  img.onerror = () => {
+    setStatus("Could not load the puzzle image. You can still start a puzzle.");
+    onReady?.();
+  };
+  img.src = entry.src;
+}
+
 function returnToStartMenu() {
   game.abandonProgress();
   showWin(false);
   showPreview(false);
   closeAppMenu();
   setDifficultyControls(loadDifficultyPreference());
+  setImageControls(loadImagePreference());
   showStartMenu(true);
   setStatus("");
 }
 
 function startPuzzleFromMenu() {
   const n = saveDifficultyPreference(getSelectedDifficulty());
+  const imageId = saveImagePreference(getSelectedImageId());
   setDifficultyControls(n);
+  setImageControls(imageId);
   showWin(false);
   showStartMenu(false);
   clearProgress();
-  game.newGame();
+  loadPuzzleImage(imageId, () => {
+    game.newGame();
+  });
 }
 
 function resumeSavedProgress(progress) {
   setDifficultyControls(progress.difficulty);
   saveDifficultyPreference(progress.difficulty);
+  setImageControls(progress.imageId);
+  saveImagePreference(progress.imageId);
   showWin(false);
   showStartMenu(false);
-  game.restoreGame(progress);
+  loadPuzzleImage(progress.imageId, () => {
+    game.restoreGame(progress);
+  });
 }
 
 bindChrome({
@@ -74,6 +111,9 @@ bindChrome({
   onPlayAgain: () => returnToStartMenu(),
   onPieceOptionSelect: (n) => {
     saveDifficultyPreference(n);
+  },
+  onImageOptionSelect: (id) => {
+    saveImagePreference(id);
   },
   onStartPuzzle: () => startPuzzleFromMenu(),
   onZoomIn: () => {
@@ -115,17 +155,8 @@ initPwa({
   },
 });
 
-const img = new Image();
-img.onload = () => {
-  game.setImage(img);
-  if (savedProgress) {
-    resumeSavedProgress(savedProgress);
-  }
-};
-img.onerror = () => {
-  setStatus("Could not load the puzzle image. You can still start a puzzle.");
-  if (savedProgress) {
-    resumeSavedProgress(savedProgress);
-  }
-};
-img.src = IMAGE_SRC;
+if (savedProgress) {
+  resumeSavedProgress(savedProgress);
+} else {
+  loadPuzzleImage(savedImageId);
+}

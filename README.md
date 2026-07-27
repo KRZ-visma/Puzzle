@@ -41,11 +41,11 @@ On feature branches the version stays `dev` until merge.
 
 ## What’s included
 
-- Cartoon farm landscape image (`assets/puzzle.jpg`)
+- Image gallery of CC0 / public-domain landscapes (`assets/gallery/`; see `LICENSES.md`)
 - Canvas interlocking pieces with tab/blank edges
 - Drag with Pointer Events; neighbor snap + board silhouette snap; moving groups
 - Difficulty: 12 / 48 / 100 / 500 / 1000 pieces
-- Shuffle, preview, and win screen
+- Preview and win screen
 - Modular `js/` and `css/` layout to keep feature work separated
 - PWA manifest, icons, offline shell, and self-update checks
 - Playwright e2e + small Node unit tests

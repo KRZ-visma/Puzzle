@@ -1,10 +1,12 @@
 import { DEFAULT_DIFFICULTY } from "./config.js";
+import { DEFAULT_IMAGE_ID, getGalleryImage, normalizeImageId } from "./gallery.js";
 import { els } from "./dom.js";
 import { normalizeDifficulty } from "./settings.js";
 
 /** Status text, menu, and modal chrome. */
 
 let selectedDifficulty = DEFAULT_DIFFICULTY;
+let selectedImageId = DEFAULT_IMAGE_ID;
 
 export function setStatus(message) {
   if (!els.status) return;
@@ -69,6 +71,29 @@ export function getSelectedDifficulty() {
   return normalizeDifficulty(selectedDifficulty);
 }
 
+/** Sync start-menu gallery selection and preview image. */
+export function setImageControls(value) {
+  const id = normalizeImageId(value);
+  selectedImageId = id;
+  for (const btn of els.galleryOptions) {
+    const selected = btn.dataset.imageId === id;
+    btn.setAttribute("aria-pressed", selected ? "true" : "false");
+    btn.classList.toggle("is-selected", selected);
+  }
+  setPreviewImage(getGalleryImage(id).src);
+  return id;
+}
+
+export function getSelectedImageId() {
+  return normalizeImageId(selectedImageId);
+}
+
+/** Update the preview modal image source. */
+export function setPreviewImage(src) {
+  if (!els.previewImage || !src) return;
+  els.previewImage.src = src;
+}
+
 export function setZoomLabel(scale) {
   if (!els.zoomResetBtn) return;
   const pct = Math.round((Number(scale) || 1) * 100);
@@ -80,6 +105,7 @@ export function bindChrome({
   onPlayAgain,
   onStartPuzzle,
   onPieceOptionSelect,
+  onImageOptionSelect,
   onZoomIn,
   onZoomOut,
   onZoomReset,
@@ -119,6 +145,14 @@ export function bindChrome({
       const n = normalizeDifficulty(btn.dataset.pieces);
       setDifficultyControls(n);
       onPieceOptionSelect?.(n);
+    });
+  }
+
+  for (const btn of els.galleryOptions) {
+    btn.addEventListener("click", () => {
+      const id = normalizeImageId(btn.dataset.imageId);
+      setImageControls(id);
+      onImageOptionSelect?.(id);
     });
   }
 

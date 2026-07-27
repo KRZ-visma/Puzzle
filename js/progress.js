@@ -1,11 +1,12 @@
 import { DIFFICULTIES } from "./config.js";
+import { normalizeImageId } from "./gallery.js";
 import { loadJson, remove, saveJson } from "./storage.js";
 
 /** localStorage key for in-progress puzzle layout. */
 const PROGRESS_KEY = "progress";
 
 /** Schema version for saved progress payloads. */
-export const PROGRESS_VERSION = 1;
+export const PROGRESS_VERSION = 2;
 
 /**
  * Normalize absolute canvas positions to board-relative piece units so a
@@ -61,7 +62,9 @@ export function groupsFromGroupOf(groupOf) {
 export function normalizeProgress(raw) {
   if (!raw || typeof raw !== "object") return null;
   const data = /** @type {Record<string, unknown>} */ (raw);
-  if (data.version !== PROGRESS_VERSION) return null;
+  const version = Number(data.version);
+  // v1 saves predate the gallery; accept them with the default image id.
+  if (version !== 1 && version !== PROGRESS_VERSION) return null;
 
   const difficulty = Number(data.difficulty);
   const chosen = DIFFICULTIES[difficulty];
@@ -73,6 +76,8 @@ export function normalizeProgress(raw) {
 
   const seed = Number(data.seed);
   if (!Number.isFinite(seed)) return null;
+
+  const imageId = normalizeImageId(version === 1 ? undefined : data.imageId);
 
   const total = cols * rows;
   const positions = data.positions;
@@ -94,6 +99,7 @@ export function normalizeProgress(raw) {
   return {
     version: PROGRESS_VERSION,
     difficulty,
+    imageId,
     cols,
     rows,
     seed: seed >>> 0 || 1,
@@ -129,6 +135,7 @@ export function clearProgress() {
  * Build a storable progress object from live game fields.
  * @param {{
  *   difficulty: number,
+ *   imageId: string,
  *   cols: number,
  *   rows: number,
  *   seed: number,
@@ -141,6 +148,7 @@ export function buildProgress(state) {
   return normalizeProgress({
     version: PROGRESS_VERSION,
     difficulty: state.difficulty,
+    imageId: state.imageId,
     cols: state.cols,
     rows: state.rows,
     seed: state.seed,

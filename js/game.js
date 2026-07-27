@@ -1,4 +1,5 @@
 import { DIFFICULTIES, DEFAULT_DIFFICULTY } from "./config.js";
+import { DEFAULT_IMAGE_ID, normalizeImageId } from "./gallery.js";
 import { els } from "./dom.js";
 import { createGroups, groupCount, mergeGroups } from "./groups.js";
 import { createPlayfield } from "./playfield.js";
@@ -18,6 +19,7 @@ import {
 } from "./snap.js";
 import {
   getSelectedDifficulty,
+  getSelectedImageId,
   setStatus,
   setZoomLabel,
   updateProgress,
@@ -36,6 +38,7 @@ export function createGame() {
   let groups = null;
   let seed = 1;
   let difficulty = DEFAULT_DIFFICULTY;
+  let imageId = DEFAULT_IMAGE_ID;
   let image = null;
   let active = false;
 
@@ -86,6 +89,7 @@ export function createGame() {
     if (!(layout.pieceW > 0) || !(layout.pieceH > 0)) return false;
     const payload = buildProgress({
       difficulty,
+      imageId,
       cols,
       rows,
       seed,
@@ -158,6 +162,7 @@ export function createGame() {
 
   function newGame() {
     const nextDifficulty = getSelectedDifficulty();
+    const nextImageId = normalizeImageId(getSelectedImageId());
     const chosen = DIFFICULTIES[nextDifficulty] || DIFFICULTIES[DEFAULT_DIFFICULTY];
     const nextSeed = (Date.now() ^ (chosen.cols * 997) ^ (chosen.rows * 131)) >>> 0 || 1;
 
@@ -173,6 +178,7 @@ export function createGame() {
       rows = chosen.rows;
       seed = nextSeed;
       difficulty = nextDifficulty;
+      imageId = nextImageId;
       groups = createGroups(chosen.cols * chosen.rows);
       active = true;
       showWin(false);
@@ -204,6 +210,7 @@ export function createGame() {
       rows = saved.rows;
       seed = saved.seed;
       difficulty = saved.difficulty;
+      imageId = normalizeImageId(saved.imageId);
       groups = groupsFromGroupOf(saved.groupOf);
       active = true;
       showWin(false);
@@ -362,6 +369,7 @@ export function createGame() {
         rows,
         seed,
         difficulty,
+        imageId,
         active,
         groups: groups ? groupCount(groups) : 0,
         placed: countPlacedPieces(
