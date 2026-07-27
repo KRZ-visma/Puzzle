@@ -2,6 +2,7 @@
  * Clear the board silhouette by translating overlapping groups into the gutters.
  * Pure helpers — keep relative piece offsets (groups stay connected).
  * Board-locked groups (every member on its solved seat) are left in place.
+ * Unlocked groups in the one-piece margin around the board are cleared too.
  */
 
 import { translateGroup } from "./groups.js";
@@ -34,6 +35,21 @@ export function rectsOverlap(a, b) {
   return !(a.maxX <= b.minX || a.minX >= b.maxX || a.maxY <= b.minY || a.minY >= b.maxY);
 }
 
+/**
+ * Board silhouette expanded by one piece on each side — the keep-out zone
+ * that clear-area must empty (except for locked pieces).
+ */
+export function keepOutBounds(board, pieceW, pieceH) {
+  const gapX = Math.max(0, pieceW);
+  const gapY = Math.max(0, pieceH);
+  return {
+    minX: board.minX - gapX,
+    minY: board.minY - gapY,
+    maxX: board.maxX + gapX,
+    maxY: board.maxY + gapY,
+  };
+}
+
 function fitsOnCanvas(bounds, dx, dy, cssW, cssH) {
   return (
     bounds.minX + dx >= 0 &&
@@ -49,10 +65,10 @@ function clamp(value, min, max) {
 }
 
 /**
- * Pick a translation that moves `bounds` fully outside the board rect,
- * leaving at least one piece of clearance from the board border.
- * Prefers a side that keeps the group on-canvas when possible; otherwise the
- * shortest clear move (pieces may leave the canvas for large groups).
+ * Pick a translation that moves `bounds` fully outside the one-piece keep-out
+ * zone around the board. Prefers a side that keeps the group on-canvas when
+ * possible; otherwise the shortest clear move (pieces may leave the canvas
+ * for large groups).
  */
 export function translationOffBoard(
   bounds,
@@ -63,11 +79,12 @@ export function translationOffBoard(
   pieceW = 0,
   pieceH = 0
 ) {
-  if (!rectsOverlap(bounds, board)) {
+  const keepOut = keepOutBounds(board, pieceW, pieceH);
+  if (!rectsOverlap(bounds, keepOut)) {
     return { dx: 0, dy: 0 };
   }
 
-  // One piece away from the silhouette on the move axis.
+  // One piece away from the silhouette on the move axis (= flush with keepOut).
   const gapX = Math.max(0, pieceW);
   const gapY = Math.max(0, pieceH);
 
@@ -121,8 +138,9 @@ export function translationOffBoard(
 }
 
 /**
- * Translate every unlocked group that overlaps the board silhouette into a gutter.
- * Board-locked groups stay on their seats. Returns how many groups were moved.
+ * Translate every unlocked group that overlaps the board or its one-piece
+ * margin into a gutter. Board-locked groups stay on their seats.
+ * Returns how many groups were moved.
  */
 export function clearPuzzleArea({
   groups,
@@ -145,6 +163,7 @@ export function clearPuzzleArea({
     maxX: originX + boardW,
     maxY: originY + boardH,
   };
+  const keepOut = keepOutBounds(board, pieceW, pieceH);
 
   const seen = new Set();
   let moved = 0;
@@ -162,7 +181,7 @@ export function clearPuzzleArea({
 
     const members = groups.members.get(gid);
     const bounds = groupBounds(members, positions, pieceW, pieceH);
-    if (!rectsOverlap(bounds, board)) continue;
+    if (!rectsOverlap(bounds, keepOut)) continue;
 
     const { dx, dy } = translationOffBoard(bounds, board, cssW, cssH, rng, pieceW, pieceH);
     if (dx === 0 && dy === 0) continue;
