@@ -14,6 +14,8 @@ export const els = {
   startModal: document.getElementById("start-modal"),
   startBtn: document.getElementById("start-btn"),
   pieceOptions: document.getElementById("start-modal")?.querySelectorAll(".piece-option") ?? [],
+  galleryOptions: document.getElementById("start-modal")?.querySelectorAll(".gallery-option") ?? [],
+  previewImage: document.querySelector("#preview-modal .preview-image"),
   appVersion: document.getElementById("app-version"),
   updateBanner: document.getElementById("update-banner"),
   reloadUpdate: document.getElementById("reload-update"),

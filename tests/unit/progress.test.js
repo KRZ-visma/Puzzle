@@ -65,6 +65,7 @@ test("normalizeProgress accepts a valid 12-piece payload", () => {
   const normalized = normalizeProgress({
     version: PROGRESS_VERSION,
     difficulty: 12,
+    imageId: "waterfall",
     cols: 4,
     rows: 3,
     seed: 99,
@@ -72,8 +73,25 @@ test("normalizeProgress accepts a valid 12-piece payload", () => {
     groupOf,
   });
   assert.equal(normalized?.difficulty, 12);
+  assert.equal(normalized?.imageId, "waterfall");
   assert.equal(normalized?.seed, 99);
   assert.equal(normalized?.positions.length, 12);
+});
+
+test("normalizeProgress migrates v1 saves to default gallery image", () => {
+  const positions = Array.from({ length: 12 }, (_, i) => ({ nx: i, ny: 0 }));
+  const groupOf = Array.from({ length: 12 }, (_, i) => i);
+  const normalized = normalizeProgress({
+    version: 1,
+    difficulty: 12,
+    cols: 4,
+    rows: 3,
+    seed: 7,
+    positions,
+    groupOf,
+  });
+  assert.equal(normalized?.version, PROGRESS_VERSION);
+  assert.equal(normalized?.imageId, "woods");
 });
 
 test("normalizeProgress rejects mismatched grid or bad seats", () => {
@@ -96,6 +114,7 @@ test("normalizeProgress rejects mismatched grid or bad seats", () => {
 test("save and load progress round-trip", () => {
   const progress = buildProgress({
     difficulty: 12,
+    imageId: "village",
     cols: 4,
     rows: 3,
     seed: 42,
@@ -107,6 +126,7 @@ test("save and load progress round-trip", () => {
     layout,
   });
   assert.ok(progress);
+  assert.equal(progress.imageId, "village");
   assert.equal(saveProgress(progress), true);
   assert.ok(memory.has(key("progress")));
   assert.deepEqual(loadProgress(), progress);

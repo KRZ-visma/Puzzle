@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 import { DEFAULT_DIFFICULTY } from "../../js/config.js";
+import { DEFAULT_IMAGE_ID } from "../../js/gallery.js";
 import {
   loadDifficultyPreference,
+  loadImagePreference,
   normalizeDifficulty,
   saveDifficultyPreference,
+  saveImagePreference,
 } from "../../js/settings.js";
 import { key } from "../../js/storage.js";
 
@@ -47,4 +50,16 @@ test("loadDifficultyPreference returns default when unset or invalid", () => {
   assert.equal(loadDifficultyPreference(), DEFAULT_DIFFICULTY);
   memory.set(key("difficulty"), "9999");
   assert.equal(loadDifficultyPreference(), DEFAULT_DIFFICULTY);
+});
+
+test("save and load image preference round-trip", () => {
+  assert.equal(saveImagePreference("forest"), "forest");
+  assert.equal(loadImagePreference(), "forest");
+  assert.equal(memory.get(key("imageId")), '"forest"');
+});
+
+test("loadImagePreference returns default when unset or invalid", () => {
+  assert.equal(loadImagePreference(), DEFAULT_IMAGE_ID);
+  memory.set(key("imageId"), '"not-a-real-image"');
+  assert.equal(loadImagePreference(), DEFAULT_IMAGE_ID);
 });

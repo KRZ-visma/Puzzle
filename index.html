@@ -83,7 +83,12 @@
             Close
           </button>
         </div>
-        <img src="assets/puzzle.jpg" alt="Completed puzzle preview" class="preview-image" />
+        <img
+          src="assets/gallery/woods.jpg"
+          alt="Completed puzzle preview"
+          class="preview-image"
+          data-testid="preview-image"
+        />
       </div>
     </div>
 
@@ -99,8 +104,58 @@
       <div class="modal-card start-card" role="dialog" aria-modal="true" aria-labelledby="start-title">
         <h2 id="start-title">Start a puzzle</h2>
         <p class="start-lead" data-testid="start-lead">
-          Choose how many pieces, then drag them to connect tabs and snap groups onto the board outline.
+          Pick an image and how many pieces, then drag them to connect tabs and snap groups onto the board outline.
         </p>
+        <div class="gallery-section">
+          <p class="gallery-label" id="gallery-label">Puzzle image</p>
+          <div
+            class="gallery-options"
+            role="radiogroup"
+            aria-labelledby="gallery-label"
+            data-testid="gallery-options"
+          >
+            <button
+              type="button"
+              class="gallery-option"
+              data-image-id="woods"
+              data-testid="gallery-option-woods"
+              aria-pressed="true"
+            >
+              <img src="assets/gallery/woods.jpg" alt="" />
+              <span class="gallery-option-title">Mountain woods</span>
+            </button>
+            <button
+              type="button"
+              class="gallery-option"
+              data-image-id="village"
+              data-testid="gallery-option-village"
+              aria-pressed="false"
+            >
+              <img src="assets/gallery/village.jpg" alt="" />
+              <span class="gallery-option-title">Alpine village</span>
+            </button>
+            <button
+              type="button"
+              class="gallery-option"
+              data-image-id="waterfall"
+              data-testid="gallery-option-waterfall"
+              aria-pressed="false"
+            >
+              <img src="assets/gallery/waterfall.jpg" alt="" />
+              <span class="gallery-option-title">Wooded waterfall</span>
+            </button>
+            <button
+              type="button"
+              class="gallery-option"
+              data-image-id="forest"
+              data-testid="gallery-option-forest"
+              aria-pressed="false"
+            >
+              <img src="assets/gallery/forest.jpg" alt="" />
+              <span class="gallery-option-title">Forest skyline</span>
+            </button>
+          </div>
+        </div>
         <div
           class="piece-options"
           role="radiogroup"
