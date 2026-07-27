@@ -3,17 +3,25 @@
  * Paths are command lists so Node unit tests can assert without Canvas.
  */
 
-import { TAB_FRACTION } from "./config.js";
+import {
+  TAB_ALONG_FRACTION,
+  TAB_CENTER_MAX,
+  TAB_CENTER_MIN,
+  TAB_FRACTION,
+} from "./config.js";
 import { createRng, randomSign } from "./rng.js";
 
 /**
- * Build shared edge polarity grids.
+ * Build shared edge polarity + connector-center grids.
  * hEdges[row][col] sits between (row, col) and (row, col+1):
  *   +1 → left piece has a tab on its right edge
  *   -1 → left piece has a blank on its right edge
  * vEdges[row][col] sits between (row, col) and (row+1, col):
  *   +1 → top piece has a tab on its bottom edge
  *   -1 → top piece has a blank on its bottom edge
+ * hCenters / vCenters store the connector mid-point along that shared
+ * edge as a fraction of the side, measured from the low axis end
+ * (top for vertical edges, left for horizontal edges).
  */
 export function createEdgeMap(cols, rows, seed = 1) {
   const rng = createRng(seed);
@@ -23,7 +31,19 @@ export function createEdgeMap(cols, rows, seed = 1) {
   const vEdges = Array.from({ length: rows - 1 }, () =>
     Array.from({ length: cols }, () => randomSign(rng))
   );
-  return { hEdges, vEdges, cols, rows, seed };
+  // Draw centers after polarities so existing seeds keep the same tab/blank map.
+  const hCenters = Array.from({ length: rows }, () =>
+    Array.from({ length: cols - 1 }, () => randomTabCenter(rng))
+  );
+  const vCenters = Array.from({ length: rows - 1 }, () =>
+    Array.from({ length: cols }, () => randomTabCenter(rng))
+  );
+  return { hEdges, vEdges, hCenters, vCenters, cols, rows, seed };
+}
+
+/** Seeded connector center in [TAB_CENTER_MIN, TAB_CENTER_MAX]. */
+export function randomTabCenter(rng) {
+  return TAB_CENTER_MIN + rng() * (TAB_CENTER_MAX - TAB_CENTER_MIN);
 }
 
 function tabSizeFor(pieceW, pieceH) {
@@ -31,60 +51,188 @@ function tabSizeFor(pieceW, pieceH) {
 }
 
 /**
- * Append a tab or blank along an axis-aligned edge.
+ * Clamp a desired center so the full connector width stays on the edge
+ * with a small margin from the corners.
+ */
+export function clampTabCenter(centerT, alongFraction = TAB_ALONG_FRACTION) {
+  const half = alongFraction / 2;
+  const margin = 0.06;
+  const min = half + margin;
+  const max = 1 - half - margin;
+  if (min >= max) return 0.5;
+  return Math.min(Math.max(centerT, min), max);
+}
+
+/**
+ * Absolute start / mid / end of a connector along an axis, measured from
+ * the low end of that axis (independent of path traversal direction).
+ */
+export function connectorSpan(axisLength, centerT, alongFraction = TAB_ALONG_FRACTION) {
+  const c = clampTabCenter(centerT, alongFraction);
+  const half = (axisLength * alongFraction) / 2;
+  const mid = axisLength * c;
+  return { start: mid - half, mid, end: mid + half };
+}
+
+/**
+ * Build absolute-space cubic segments for a necked knob, always ordered
+ * from the low axis end toward the high end. Callers reverse the segment
+ * list when the piece path travels the opposite way so neighbors share
+ * identical contact geometry.
+ */
+function connectorSegments({ along, fixed, outward, polarity, tab, absStart, absMid, absEnd }) {
+  const depth = tab * polarity;
+  const neck = fixed + outward * depth * 0.22;
+  const shoulder = fixed + outward * depth * 0.55;
+  const bulge = fixed + outward * depth;
+  const tip = fixed + outward * depth * 1.05;
+  const w = absEnd - absStart;
+  const mid = absMid;
+
+  if (along === "x") {
+    return [
+      {
+        type: "C",
+        cp1x: absStart + w * 0.12,
+        cp1y: fixed,
+        cp2x: absStart + w * 0.18,
+        cp2y: neck,
+        x: absStart + w * 0.28,
+        y: shoulder,
+      },
+      {
+        type: "C",
+        cp1x: absStart + w * 0.38,
+        cp1y: tip,
+        cp2x: mid - w * 0.08,
+        cp2y: tip,
+        x: mid,
+        y: bulge,
+      },
+      {
+        type: "C",
+        cp1x: mid + w * 0.08,
+        cp1y: tip,
+        cp2x: absEnd - w * 0.38,
+        cp2y: tip,
+        x: absEnd - w * 0.28,
+        y: shoulder,
+      },
+      {
+        type: "C",
+        cp1x: absEnd - w * 0.18,
+        cp1y: neck,
+        cp2x: absEnd - w * 0.12,
+        cp2y: fixed,
+        x: absEnd,
+        y: fixed,
+      },
+    ];
+  }
+
+  return [
+    {
+      type: "C",
+      cp1x: fixed,
+      cp1y: absStart + w * 0.12,
+      cp2x: neck,
+      cp2y: absStart + w * 0.18,
+      x: shoulder,
+      y: absStart + w * 0.28,
+    },
+    {
+      type: "C",
+      cp1x: tip,
+      cp1y: absStart + w * 0.38,
+      cp2x: tip,
+      cp2y: mid - w * 0.08,
+      x: bulge,
+      y: mid,
+    },
+    {
+      type: "C",
+      cp1x: tip,
+      cp1y: mid + w * 0.08,
+      cp2x: tip,
+      cp2y: absEnd - w * 0.38,
+      x: shoulder,
+      y: absEnd - w * 0.28,
+    },
+    {
+      type: "C",
+      cp1x: neck,
+      cp1y: absEnd - w * 0.18,
+      cp2x: fixed,
+      cp2y: absEnd - w * 0.12,
+      x: fixed,
+      y: absEnd,
+    },
+  ];
+}
+
+/** Reverse a cubic so the path can travel high→low with the same curve. */
+function reverseCubic(cmd, endX, endY) {
+  return {
+    type: "C",
+    cp1x: cmd.cp2x,
+    cp1y: cmd.cp2y,
+    cp2x: cmd.cp1x,
+    cp2y: cmd.cp1y,
+    x: endX,
+    y: endY,
+  };
+}
+
+/**
+ * Append a classic necked tab or blank along an axis-aligned edge.
  * `along` is the primary axis ("x" horizontal edge, "y" vertical edge).
  * `outward` is the signed direction the tab protrudes (canvas coords).
  * `polarity` +1 = tab (out), -1 = blank (in). Flat edges skip this helper.
+ * `centerT` is the connector mid-point as a fraction of the piece side,
+ * measured from the low end of that axis (left / top).
  */
-function appendConnector(commands, { along, from, to, fixed, outward, polarity, tab }) {
-  const span = to - from;
-  const start = from + span * 0.35;
-  const end = from + span * 0.65;
-  const mid = (start + end) / 2;
-  const depth = tab * polarity;
-  const bulge = fixed + outward * depth;
+function appendConnector(commands, { along, from, to, fixed, outward, polarity, tab, centerT }) {
+  const axisLength = Math.abs(to - from);
+  const { start: absStart, mid: absMid, end: absEnd } = connectorSpan(axisLength, centerT);
+  const forward = to > from;
+  const segments = connectorSegments({
+    along,
+    fixed,
+    outward,
+    polarity,
+    tab,
+    absStart,
+    absMid,
+    absEnd,
+  });
 
   if (along === "x") {
-    commands.push({ type: "L", x: start, y: fixed });
-    commands.push({
-      type: "C",
-      cp1x: start + span * 0.05,
-      cp1y: fixed,
-      cp2x: mid - span * 0.08,
-      cp2y: bulge,
-      x: mid,
-      y: bulge,
-    });
-    commands.push({
-      type: "C",
-      cp1x: mid + span * 0.08,
-      cp1y: bulge,
-      cp2x: end - span * 0.05,
-      cp2y: fixed,
-      x: end,
-      y: fixed,
-    });
-    commands.push({ type: "L", x: to, y: fixed });
+    if (forward) {
+      commands.push({ type: "L", x: absStart, y: fixed });
+      for (const seg of segments) commands.push(seg);
+      commands.push({ type: "L", x: to, y: fixed });
+    } else {
+      commands.push({ type: "L", x: absEnd, y: fixed });
+      for (let i = segments.length - 1; i >= 0; i -= 1) {
+        const seg = segments[i];
+        const endX = i === 0 ? absStart : segments[i - 1].x;
+        const endY = i === 0 ? fixed : segments[i - 1].y;
+        commands.push(reverseCubic(seg, endX, endY));
+      }
+      commands.push({ type: "L", x: to, y: fixed });
+    }
+  } else if (forward) {
+    commands.push({ type: "L", x: fixed, y: absStart });
+    for (const seg of segments) commands.push(seg);
+    commands.push({ type: "L", x: fixed, y: to });
   } else {
-    commands.push({ type: "L", x: fixed, y: start });
-    commands.push({
-      type: "C",
-      cp1x: fixed,
-      cp1y: start + span * 0.05,
-      cp2x: bulge,
-      cp2y: mid - span * 0.08,
-      x: bulge,
-      y: mid,
-    });
-    commands.push({
-      type: "C",
-      cp1x: bulge,
-      cp1y: mid + span * 0.08,
-      cp2x: fixed,
-      cp2y: end - span * 0.05,
-      x: fixed,
-      y: end,
-    });
+    commands.push({ type: "L", x: fixed, y: absEnd });
+    for (let i = segments.length - 1; i >= 0; i -= 1) {
+      const seg = segments[i];
+      const endX = i === 0 ? fixed : segments[i - 1].x;
+      const endY = i === 0 ? absStart : segments[i - 1].y;
+      commands.push(reverseCubic(seg, endX, endY));
+    }
     commands.push({ type: "L", x: fixed, y: to });
   }
 }
@@ -94,7 +242,7 @@ function appendConnector(commands, { along, from, to, fixed, outward, polarity, 
  * tabs extend outside that rectangle.
  */
 export function buildPiecePathCommands(pieceId, edgeMap, pieceW, pieceH) {
-  const { cols, rows, hEdges, vEdges } = edgeMap;
+  const { cols, rows, hEdges, vEdges, hCenters, vCenters } = edgeMap;
   const col = pieceId % cols;
   const row = Math.floor(pieceId / cols);
   const tab = tabSizeFor(pieceW, pieceH);
@@ -116,6 +264,7 @@ export function buildPiecePathCommands(pieceId, edgeMap, pieceW, pieceH) {
       outward: -1,
       polarity,
       tab,
+      centerT: vCenters[row - 1][col],
     });
   }
 
@@ -133,6 +282,7 @@ export function buildPiecePathCommands(pieceId, edgeMap, pieceW, pieceH) {
       outward: 1,
       polarity,
       tab,
+      centerT: hCenters[row][col],
     });
   }
 
@@ -150,6 +300,7 @@ export function buildPiecePathCommands(pieceId, edgeMap, pieceW, pieceH) {
       outward: 1,
       polarity,
       tab,
+      centerT: vCenters[row][col],
     });
   }
 
@@ -168,6 +319,7 @@ export function buildPiecePathCommands(pieceId, edgeMap, pieceW, pieceH) {
       outward: -1,
       polarity,
       tab,
+      centerT: hCenters[row][col - 1],
     });
   }
 
@@ -177,7 +329,7 @@ export function buildPiecePathCommands(pieceId, edgeMap, pieceW, pieceH) {
 
 /** Bounding box padding so tabs are not clipped when rasterizing. */
 export function piecePadding(pieceW, pieceH) {
-  return tabSizeFor(pieceW, pieceH) * 1.15;
+  return tabSizeFor(pieceW, pieceH) * 1.2;
 }
 
 /** Solved top-left of a piece’s rectangular body on the board. */
