@@ -122,62 +122,13 @@ export function layoutRegions(mode, { cols, rows, pieceW, pieceH, originX, origi
 }
 
 /**
- * Lay piece ids in a non-overlapping grid inside a tray region.
- * @param {number[]} ids
- * @param {{ x: number, y: number, w: number, h: number }} region
- */
-function packInRegion(ids, region, pieceW, pieceH, cssW, cssH, positions) {
-  const n = ids.length;
-  if (n === 0) return;
-
-  const gap = 2;
-  const cellW = pieceW + gap;
-  const cellH = pieceH + gap;
-  const maxCols = Math.max(1, Math.floor((region.w + gap) / cellW));
-
-  let gridCols = maxCols;
-  for (let c = 1; c <= maxCols; c += 1) {
-    const rowsNeeded = Math.ceil(n / c);
-    if (rowsNeeded * cellH - gap <= region.h + 0.5) {
-      gridCols = c;
-      break;
-    }
-  }
-  const gridRows = Math.ceil(n / gridCols);
-
-  const usedW = gridCols * cellW - gap;
-  const usedH = gridRows * cellH - gap;
-  const startX = region.x + Math.max(0, (region.w - usedW) / 2);
-  const startY = region.y + Math.max(0, (region.h - usedH) / 2);
-
-  for (let i = 0; i < n; i += 1) {
-    const c = i % gridCols;
-    const r = Math.floor(i / gridCols);
-    positions[ids[i]] = clampPiece(
-      startX + c * cellW,
-      startY + r * cellH,
-      pieceW,
-      pieceH,
-      cssW,
-      cssH
-    );
-  }
-}
-
-/**
- * Left/right trays: half the pieces in each tray, laid out without stacking.
+ * Left/right trays: park pieces off-canvas.
+ * Visible tray placement is handled by the scrollable side-tray UI.
  * @returns {{ x: number, y: number }[]}
  */
-export function placeInSideTrays(layout, rng = Math.random) {
-  const { cols, rows, pieceW, pieceH, cssW, cssH } = layout;
-  const total = cols * rows;
-  const positions = new Array(total);
-  const regions = layoutRegions(LAYOUT_SIDE_TRAYS, layout);
-  const ids = shuffleIds(total, rng);
-  const mid = Math.ceil(ids.length / 2);
-  packInRegion(ids.slice(0, mid), regions[0], pieceW, pieceH, cssW, cssH, positions);
-  packInRegion(ids.slice(mid), regions[1], pieceW, pieceH, cssW, cssH, positions);
-  return positions;
+export function placeInSideTrays(layout, _rng = Math.random) {
+  const total = layout.cols * layout.rows;
+  return Array.from({ length: total }, () => ({ x: -10000, y: -10000 }));
 }
 
 /**

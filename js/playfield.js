@@ -89,9 +89,15 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
   let snapFraction = SNAP_FRACTION;
   let layoutMode = LAYOUT_SCATTER;
   let basketState = createBasketState();
+  /** @type {Set<number>} */
+  let trayPieceIds = new Set();
 
   function emitBasketsChange() {
     onBasketsChange?.(snapshotBaskets(basketState));
+  }
+
+  function isInTray(pieceId) {
+    return trayPieceIds.has(pieceId);
   }
 
   function threshold() {
@@ -121,38 +127,9 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
   }
 
   function boardSize() {
-    // Side trays need wide left/right gutters for a non-overlapping grid.
-    let marginX = cssW * 0.08;
-    let marginY = cssH * 0.1;
-    if (layoutMode === LAYOUT_SIDE_TRAYS) {
-      marginY = cssH * 0.06;
-      marginX = cssW * 0.18;
-      const total = cols * rows;
-      const perTray = Math.max(1, Math.ceil(total / 2));
-      for (let i = 0; i < 5; i += 1) {
-        const maxBoardW = cssW - marginX * 2;
-        const maxBoardH = cssH - marginY * 2;
-        const aspect = cols / rows;
-        let boardW = maxBoardW;
-        let boardH = boardW / aspect;
-        if (boardH > maxBoardH) {
-          boardH = maxBoardH;
-          boardW = boardH * aspect;
-        }
-        const pw = boardW / cols;
-        const ph = boardH / rows;
-        const gap = 2;
-        const rowsFit = Math.max(1, Math.floor((cssH - gap * 2 + gap) / (ph + gap)));
-        const colsNeeded = Math.max(1, Math.ceil(perTray / rowsFit));
-        const trayNeed = colsNeeded * (pw + gap) - gap + 12;
-        const next = Math.min(cssW * 0.34, Math.max(marginX, trayNeed));
-        if (Math.abs(next - marginX) < 0.5) {
-          marginX = next;
-          break;
-        }
-        marginX = next;
-      }
-    }
+    // Side trays live in DOM panels; board uses the normal centered silhouette.
+    const marginX = cssW * 0.08;
+    const marginY = cssH * 0.1;
     const maxBoardW = cssW - marginX * 2;
     const maxBoardH = cssH - marginY * 2;
     const aspect = cols / rows;
@@ -186,6 +163,9 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
   }
 
   function drawLayoutChrome() {
+    // Side trays are DOM panels now; only scatter has no chrome, and the old
+    // canvas gutter chrome is unused.
+    if (layoutMode === LAYOUT_SIDE_TRAYS) return;
     const regions = layoutRegions(layoutMode, layoutMetrics());
     if (!regions.length) return;
 
@@ -332,9 +312,11 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
 
     // Board-locked pieces stay under free pieces so hit-testing can skip them.
     for (const id of zOrder) {
+      if (isInTray(id)) continue;
       if (isLocked(id)) drawPiece(id, false);
     }
     for (const id of zOrder) {
+      if (isInTray(id)) continue;
       if (isLocked(id)) continue;
       const elevate = dragGid !== null && groups.groupOf[id] === dragGid;
       drawPiece(id, elevate);
@@ -369,6 +351,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
   function hitTest(worldX, worldY) {
     for (let i = zOrder.length - 1; i >= 0; i -= 1) {
       const id = zOrder[i];
+      if (isInTray(id)) continue;
       // Skip locked pieces: they are not draggable, and skipping avoids
       // expensive isPointInPath checks as more of the board fills in.
       if (isLocked(id)) continue;
@@ -674,6 +657,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
       pinch = null;
       activePointers.clear();
       basketState = createBasketState();
+      trayPieceIds = new Set();
       emitBasketsChange();
       resize();
       boardSize();
@@ -686,6 +670,57 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
       }
       zOrder = Array.from({ length: total }, (_, i) => i);
       setCameraState(resetCamera());
+    },
+
+    setTrayPieceIds(ids) {
+      trayPieceIds = new Set(ids || []);
+      scheduleDraw();
+    },
+
+    getTrayPieceIds() {
+      return new Set(trayPieceIds);
+    },
+
+    getEdgeMap() {
+      return edgeMap;
+    },
+
+    /**
+     * Move a piece from a side tray onto the board under the pointer and start dragging.
+     * @param {number} pieceId
+     * @param {number} clientX
+     * @param {number} clientY
+     * @param {number} pointerId
+     */
+    takeTrayPieceAndDrag(pieceId, clientX, clientY, pointerId) {
+      if (!positions[pieceId] || !groups) return false;
+      trayPieceIds.delete(pieceId);
+      const rect = canvas.getBoundingClientRect();
+      const screen = {
+        x: clientX - rect.left,
+        y: clientY - rect.top,
+      };
+      const world = screenToWorld(camera, screen.x, screen.y);
+      positions[pieceId].x = world.x - pieceW / 2;
+      positions[pieceId].y = world.y - pieceH / 2;
+      bringGroupToFront(pieceId);
+      draggingBasket = null;
+      panning = null;
+      activePointers.set(pointerId, screen);
+      try {
+        canvas.setPointerCapture(pointerId);
+      } catch {
+        // Ignore capture failures from cross-element handoff.
+      }
+      dragging = {
+        pieceId,
+        pointerId,
+        lastX: world.x,
+        lastY: world.y,
+      };
+      onSelectionChange?.(pieceId);
+      scheduleDraw();
+      return true;
     },
 
     addBasket() {

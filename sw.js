@@ -1,7 +1,7 @@
 /* Service worker — caches the app shell and applies updates when a new version is available. */
-/* CACHE_VERSION: 2026.07.27.15 */
+/* CACHE_VERSION: 2026.07.27.13 */
 
-const CACHE_VERSION = "2026.07.27.15";
+const CACHE_VERSION = "2026.07.27.13";
 const CACHE_NAME = `puzzle-${CACHE_VERSION}`;
 
 const SHELL = [
@@ -15,6 +15,7 @@ const SHELL = [
   "./css/chrome.css",
   "./css/menu.css",
   "./css/playfield.css",
+  "./css/trays.css",
   "./css/modals.css",
   "./css/gallery.css",
   "./css/layout.css",
@@ -31,6 +32,8 @@ const SHELL = [
   "./js/groups.js",
   "./js/clearArea.js",
   "./js/layout.js",
+  "./js/trayPack.js",
+  "./js/sideTrays.js",
   "./js/baskets.js",
   "./js/snap.js",
   "./js/dom.js",
