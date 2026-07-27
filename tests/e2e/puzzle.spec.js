@@ -184,4 +184,32 @@ test.describe("Jigsaw playfield flows", () => {
     }, { timeout: 30_000 }).toBe(1000);
     await expect(page.getByTestId("playfield")).toBeVisible();
   });
+
+  test("zoom controls change the playfield camera", async ({ page }) => {
+    await openGame(page, { pieces: 12 });
+    await expect(page.getByTestId("zoom-controls")).toBeVisible();
+    await expect(page.getByTestId("zoom-reset")).toHaveText("100%");
+
+    await page.getByTestId("zoom-in").click();
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getCamera()?.scale ?? 0);
+    }).toBeGreaterThan(1);
+    await expect(page.getByTestId("zoom-reset")).not.toHaveText("100%");
+
+    await page.getByTestId("zoom-reset").click();
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getCamera()?.scale ?? 0);
+    }).toBe(1);
+    await expect(page.getByTestId("zoom-reset")).toHaveText("100%");
+
+    await page.getByTestId("zoom-out").click();
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getCamera()?.scale ?? 2);
+    }).toBeLessThan(1);
+
+    await page.evaluate(() => window.__PUZZLE__.setCamera({ scale: 2, panX: 12, panY: -8 }));
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.camera?.scale ?? 0);
+    }).toBe(2);
+  });
 });

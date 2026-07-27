@@ -28,6 +28,7 @@ const SHELL = [
   "./js/groups.js",
   "./js/snap.js",
   "./js/dom.js",
+  "./js/camera.js",
   "./js/playfield.js",
   "./js/ui.js",
   "./js/game.js",
