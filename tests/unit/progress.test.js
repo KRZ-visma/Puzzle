@@ -66,6 +66,7 @@ test("normalizeProgress accepts a valid 12-piece payload", () => {
     version: PROGRESS_VERSION,
     difficulty: 12,
     imageId: "waterfall",
+    layoutMode: "sideTrays",
     cols: 4,
     rows: 3,
     seed: 99,
@@ -74,8 +75,25 @@ test("normalizeProgress accepts a valid 12-piece payload", () => {
   });
   assert.equal(normalized?.difficulty, 12);
   assert.equal(normalized?.imageId, "waterfall");
+  assert.equal(normalized?.layoutMode, "sideTrays");
   assert.equal(normalized?.seed, 99);
   assert.equal(normalized?.positions.length, 12);
+});
+
+test("normalizeProgress defaults layoutMode when missing", () => {
+  const positions = Array.from({ length: 12 }, (_, i) => ({ nx: i, ny: 0 }));
+  const groupOf = Array.from({ length: 12 }, (_, i) => i);
+  const normalized = normalizeProgress({
+    version: PROGRESS_VERSION,
+    difficulty: 12,
+    imageId: "woods",
+    cols: 4,
+    rows: 3,
+    seed: 1,
+    positions,
+    groupOf,
+  });
+  assert.equal(normalized?.layoutMode, "scatter");
 });
 
 test("normalizeProgress migrates v1 saves to default gallery image", () => {
@@ -127,6 +145,7 @@ test("save and load progress round-trip", () => {
   });
   assert.ok(progress);
   assert.equal(progress.imageId, "village");
+  assert.equal(progress.layoutMode, "scatter");
   assert.equal(saveProgress(progress), true);
   assert.ok(memory.has(key("progress")));
   assert.deepEqual(loadProgress(), progress);

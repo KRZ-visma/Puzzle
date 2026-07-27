@@ -21,6 +21,14 @@ import {
   piecePadding,
   solvedPosition,
 } from "./geometry.js";
+import {
+  LAYOUT_BASKETS,
+  LAYOUT_SCATTER,
+  LAYOUT_SIDE_TRAYS,
+  layoutRegions,
+  normalizeLayoutMode,
+  placePieces,
+} from "./layout.js";
 import { isPieceOnSeat } from "./snap.js";
 
 function createPath2D(commands) {
@@ -68,6 +76,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
   let raf = 0;
   let showBackgroundImage = true;
   let snapFraction = SNAP_FRACTION;
+  let layoutMode = LAYOUT_SCATTER;
 
   function threshold() {
     return Math.min(pieceW, pieceH) * snapFraction;
@@ -96,8 +105,16 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
   }
 
   function boardSize() {
-    const marginX = cssW * 0.08;
-    const marginY = cssH * 0.1;
+    // Side trays need wide left/right gutters; baskets need corner room.
+    let marginX = cssW * 0.08;
+    let marginY = cssH * 0.1;
+    if (layoutMode === LAYOUT_SIDE_TRAYS) {
+      marginX = cssW * 0.2;
+      marginY = cssH * 0.08;
+    } else if (layoutMode === LAYOUT_BASKETS) {
+      marginX = cssW * 0.14;
+      marginY = cssH * 0.16;
+    }
     const maxBoardW = cssW - marginX * 2;
     const maxBoardH = cssH - marginY * 2;
     const aspect = cols / rows;
@@ -122,33 +139,50 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
     }
   }
 
-  function scatterPositions(rng = Math.random) {
-    const total = cols * rows;
-    positions = new Array(total);
-    const boardW = cols * pieceW;
-    const boardH = rows * pieceH;
-    for (let id = 0; id < total; id += 1) {
-      const side = Math.floor(rng() * 4);
-      let x;
-      let y;
-      if (side === 0) {
-        x = rng() * Math.max(1, cssW - pieceW);
-        y = rng() * Math.max(8, originY - pieceH);
-      } else if (side === 1) {
-        x = rng() * Math.max(1, cssW - pieceW);
-        y = originY + boardH + rng() * Math.max(8, cssH - (originY + boardH) - pieceH);
-      } else if (side === 2) {
-        x = rng() * Math.max(8, originX - pieceW);
-        y = originY + rng() * boardH;
+  function layoutMetrics() {
+    return { cols, rows, pieceW, pieceH, originX, originY, cssW, cssH };
+  }
+
+  function applyInitialPositions(rng = Math.random) {
+    positions = placePieces(layoutMode, layoutMetrics(), rng);
+  }
+
+  function drawLayoutChrome() {
+    const regions = layoutRegions(layoutMode, layoutMetrics());
+    if (!regions.length) return;
+
+    ctx.save();
+    for (const region of regions) {
+      const radius =
+        layoutMode === LAYOUT_BASKETS
+          ? Math.min(region.w, region.h) * 0.28
+          : Math.min(18, Math.min(region.w, region.h) * 0.12);
+      const r = Math.max(0, Math.min(radius, region.w / 2, region.h / 2));
+      ctx.beginPath();
+      if (typeof ctx.roundRect === "function") {
+        ctx.roundRect(region.x, region.y, region.w, region.h, r);
       } else {
-        x = originX + boardW + rng() * Math.max(8, cssW - (originX + boardW) - pieceW);
-        y = originY + rng() * boardH;
+        const { x, y, w, h } = region;
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
       }
-      positions[id] = {
-        x: Math.min(Math.max(0, x), Math.max(0, cssW - pieceW)),
-        y: Math.min(Math.max(0, y), Math.max(0, cssH - pieceH)),
-      };
+      ctx.fillStyle =
+        layoutMode === LAYOUT_BASKETS ? "rgba(212, 160, 74, 0.22)" : "rgba(31, 58, 46, 0.07)";
+      ctx.fill();
+      ctx.strokeStyle =
+        layoutMode === LAYOUT_BASKETS ? "rgba(176, 120, 40, 0.45)" : "rgba(31, 58, 46, 0.22)";
+      ctx.lineWidth = 1.5 / camera.scale;
+      if (layoutMode === LAYOUT_SIDE_TRAYS) {
+        ctx.setLineDash([5 / camera.scale, 4 / camera.scale]);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
+    ctx.restore();
   }
 
   function drawBoardGhost() {
@@ -208,6 +242,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
     ctx.translate(camera.panX, camera.panY);
     ctx.scale(camera.scale, camera.scale);
 
+    drawLayoutChrome();
     drawBoardGhost();
 
     const dragGid =
@@ -462,10 +497,19 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
       scheduleDraw();
     },
 
-    reset({ cols: c, rows: r, groups: g, seed = 1, scatterRng, positions: savedPositions }) {
+    reset({
+      cols: c,
+      rows: r,
+      groups: g,
+      seed = 1,
+      scatterRng,
+      positions: savedPositions,
+      layoutMode: nextLayoutMode,
+    }) {
       cols = c;
       rows = r;
       groups = g;
+      layoutMode = normalizeLayoutMode(nextLayoutMode ?? LAYOUT_SCATTER);
       edgeMap = createEdgeMap(cols, rows, seed);
       dragging = null;
       panning = null;
@@ -478,7 +522,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
       if (Array.isArray(savedPositions) && savedPositions.length === total) {
         positions = savedPositions.map((p) => ({ x: p.x, y: p.y }));
       } else {
-        scatterPositions(scatterRng || Math.random);
+        applyInitialPositions(scatterRng || Math.random);
       }
       zOrder = Array.from({ length: total }, (_, i) => i);
       setCameraState(resetCamera());
@@ -496,6 +540,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
         cssW,
         cssH,
         pad,
+        layoutMode,
       };
     },
 

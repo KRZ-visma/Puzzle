@@ -22,6 +22,7 @@ import {
 import {
   getSelectedDifficulty,
   getSelectedImageId,
+  getSelectedLayoutMode,
   setStatus,
   setZoomLabel,
   updateProgress,
@@ -92,6 +93,7 @@ export function createGame() {
     const payload = buildProgress({
       difficulty,
       imageId,
+      layoutMode: layout.layoutMode,
       cols,
       rows,
       seed,
@@ -169,6 +171,7 @@ export function createGame() {
   function newGame() {
     const nextDifficulty = getSelectedDifficulty();
     const nextImageId = normalizeImageId(getSelectedImageId());
+    const nextLayoutMode = getSelectedLayoutMode();
     const chosen = DIFFICULTIES[nextDifficulty] || DIFFICULTIES[DEFAULT_DIFFICULTY];
     const nextSeed = (Date.now() ^ (chosen.cols * 997) ^ (chosen.rows * 131)) >>> 0 || 1;
 
@@ -196,6 +199,7 @@ export function createGame() {
         rows,
         groups,
         seed,
+        layoutMode: nextLayoutMode,
         scatterRng: createRng(seed ^ 0x9e3779b9),
       });
       syncZoomLabel();
@@ -228,6 +232,7 @@ export function createGame() {
         rows,
         groups,
         seed,
+        layoutMode: saved.layoutMode,
         // Temporary scatter; replaced immediately with deserialized seats.
         scatterRng: createRng(seed ^ 0x9e3779b9),
       });
@@ -462,6 +467,7 @@ export function createGame() {
           originY: layout.originY,
           cssW: layout.cssW,
           cssH: layout.cssH,
+          layoutMode: layout.layoutMode,
         },
         camera,
       };

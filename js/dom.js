@@ -27,4 +27,5 @@ export const els = {
   zoomInBtn: document.getElementById("zoom-in-btn"),
   zoomOutBtn: document.getElementById("zoom-out-btn"),
   zoomResetBtn: document.getElementById("zoom-reset-btn"),
+  layoutOptions: document.getElementById("start-modal")?.querySelectorAll(".layout-option") ?? [],
 };

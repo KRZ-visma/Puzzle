@@ -188,7 +188,7 @@
       <div class="modal-card start-card" role="dialog" aria-modal="true" aria-labelledby="start-title">
         <h2 id="start-title">Start a puzzle</h2>
         <p class="start-lead" data-testid="start-lead">
-          Pick an image and how many pieces, then drag them to connect tabs and snap groups onto the board outline.
+          Pick an image, piece count, and how pieces start — then drag them to connect tabs and snap groups onto the board outline.
         </p>
         <div class="gallery-section">
           <p class="gallery-label" id="gallery-label">Puzzle image</p>
@@ -296,6 +296,46 @@
             <span class="piece-option-count">1000</span>
             <span class="piece-option-grid">40×25</span>
           </button>
+        </div>
+        <div class="layout-section">
+          <p class="layout-label" id="layout-label">Piece layout</p>
+          <div
+            class="layout-options"
+            role="radiogroup"
+            aria-labelledby="layout-label"
+            data-testid="layout-options"
+          >
+            <button
+              type="button"
+              class="layout-option"
+              data-layout="scatter"
+              data-testid="layout-option-scatter"
+              aria-pressed="true"
+            >
+              <span class="layout-option-title">All over the place</span>
+              <span class="layout-option-hint">Scattered around the board</span>
+            </button>
+            <button
+              type="button"
+              class="layout-option"
+              data-layout="sideTrays"
+              data-testid="layout-option-sideTrays"
+              aria-pressed="false"
+            >
+              <span class="layout-option-title">Side trays</span>
+              <span class="layout-option-hint">Left and right trays</span>
+            </button>
+            <button
+              type="button"
+              class="layout-option"
+              data-layout="baskets"
+              data-testid="layout-option-baskets"
+              aria-pressed="false"
+            >
+              <span class="layout-option-title">Baskets</span>
+              <span class="layout-option-hint">Corner baskets for piles</span>
+            </button>
+          </div>
         </div>
         <button type="button" id="start-btn" class="btn btn-primary start-btn" data-testid="start-puzzle">
           Start puzzle

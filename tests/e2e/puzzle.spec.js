@@ -1,12 +1,15 @@
 import { expect, test } from "@playwright/test";
 
-async function openGame(page, { pieces = 12, imageId } = {}) {
+async function openGame(page, { pieces = 12, imageId, layout } = {}) {
   await page.goto(`/?e2e=1`);
   await expect(page.getByTestId("start-modal")).toBeVisible();
   if (imageId) {
     await page.getByTestId(`gallery-option-${imageId}`).click();
   }
   await page.getByTestId(`piece-option-${pieces}`).click();
+  if (layout) {
+    await page.getByTestId(`layout-option-${layout}`).click();
+  }
   await page.getByTestId("start-puzzle").click();
   await expect(page.getByTestId("start-modal")).toBeHidden();
   await expect.poll(async () => {
@@ -25,10 +28,62 @@ test.describe("Jigsaw playfield flows", () => {
     await expect(page.getByTestId("gallery-options")).toBeVisible();
     await expect(page.getByTestId("gallery-option-woods")).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByTestId("piece-options")).toBeVisible();
+    await expect(page.getByTestId("layout-options")).toBeVisible();
+    await expect(page.getByTestId("layout-option-scatter")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("layout-option-sideTrays")).toBeVisible();
+    await expect(page.getByTestId("layout-option-baskets")).toBeVisible();
     await expect(page.getByTestId("start-puzzle")).toBeVisible();
     await expect(page.getByTestId("start-lead")).toContainText(/Pick an image/i);
     await expect(page.getByTestId("start-lead")).toContainText(/connect tabs/i);
     await expect(page.getByTestId("status")).toHaveText("");
+  });
+
+  test("starts with side trays so pieces sit left and right of the board", async ({ page }) => {
+    await openGame(page, { pieces: 12, layout: "sideTrays" });
+    const summary = await page.evaluate(() => {
+      const state = window.__PUZZLE__.getState();
+      const { positions, layout } = state;
+      const midX = layout.originX + (state.cols * layout.pieceW) / 2;
+      let left = 0;
+      let right = 0;
+      for (const p of positions) {
+        if (p.x + layout.pieceW / 2 < midX) left += 1;
+        else right += 1;
+      }
+      return { left, right, layoutMode: layout.layoutMode, placed: state.placed };
+    });
+    expect(summary.layoutMode).toBe("sideTrays");
+    expect(summary.placed).toBe(0);
+    expect(summary.left).toBeGreaterThanOrEqual(4);
+    expect(summary.right).toBeGreaterThanOrEqual(4);
+  });
+
+  test("starts with baskets so pieces pile near the corners", async ({ page }) => {
+    await openGame(page, { pieces: 12, layout: "baskets" });
+    const summary = await page.evaluate(() => {
+      const state = window.__PUZZLE__.getState();
+      const { positions, layout } = state;
+      const baskets = [
+        { x: 0, y: 0 },
+        { x: layout.cssW, y: 0 },
+        { x: 0, y: layout.cssH },
+        { x: layout.cssW, y: layout.cssH },
+      ];
+      let nearCorner = 0;
+      for (const p of positions) {
+        const cx = p.x + layout.pieceW / 2;
+        const cy = p.y + layout.pieceH / 2;
+        if (
+          baskets.some((b) => Math.hypot(cx - b.x, cy - b.y) < Math.min(layout.cssW, layout.cssH) * 0.42)
+        ) {
+          nearCorner += 1;
+        }
+      }
+      return { nearCorner, layoutMode: layout.layoutMode, placed: state.placed };
+    });
+    expect(summary.layoutMode).toBe("baskets");
+    expect(summary.placed).toBe(0);
+    expect(summary.nearCorner).toBeGreaterThanOrEqual(10);
   });
 
   test("starts a puzzle with the selected gallery image", async ({ page }) => {
