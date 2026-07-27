@@ -134,14 +134,17 @@ test.describe("Jigsaw playfield flows", () => {
     await expect.poll(async () => {
       return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? 0);
     }).toBe(2);
+    // Two separately locked neighbors merge in place into one board group.
     await expect.poll(async () => {
       return page.evaluate(() => window.__PUZZLE__?.getState()?.groups ?? 0);
-    }).toBe(1);
+    }).toBe(11);
     await expect.poll(async () => {
       return page.evaluate(
         () => window.__PUZZLE__?.isPieceLocked?.(0) && window.__PUZZLE__?.isPieceLocked?.(1)
       );
     }).toBe(true);
+    const moved = await page.evaluate(() => window.__PUZZLE__.tryMoveGroup(0, 25, 25));
+    expect(moved).toBe(false);
   });
 
   test("connecting neighbors reduces group count", async ({ page }) => {
