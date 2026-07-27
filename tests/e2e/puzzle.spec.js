@@ -1,8 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-async function openGame(page, { pieces = 12 } = {}) {
+async function openGame(page, { pieces = 12, imageId } = {}) {
   await page.goto(`/?e2e=1`);
   await expect(page.getByTestId("start-modal")).toBeVisible();
+  if (imageId) {
+    await page.getByTestId(`gallery-option-${imageId}`).click();
+  }
   await page.getByTestId(`piece-option-${pieces}`).click();
   await page.getByTestId("start-puzzle").click();
   await expect(page.getByTestId("start-modal")).toBeHidden();
@@ -16,14 +19,29 @@ async function openGame(page, { pieces = 12 } = {}) {
 }
 
 test.describe("Jigsaw playfield flows", () => {
-  test("shows a start menu to choose piece count", async ({ page }) => {
+  test("shows a start menu to choose image and piece count", async ({ page }) => {
     await page.goto(`/?e2e=1`);
     await expect(page.getByTestId("start-modal")).toBeVisible();
+    await expect(page.getByTestId("gallery-options")).toBeVisible();
+    await expect(page.getByTestId("gallery-option-woods")).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByTestId("piece-options")).toBeVisible();
     await expect(page.getByTestId("start-puzzle")).toBeVisible();
-    await expect(page.getByTestId("start-lead")).toContainText(/Choose how many pieces/i);
+    await expect(page.getByTestId("start-lead")).toContainText(/Pick an image/i);
     await expect(page.getByTestId("start-lead")).toContainText(/connect tabs/i);
     await expect(page.getByTestId("status")).toHaveText("");
+  });
+
+  test("starts a puzzle with the selected gallery image", async ({ page }) => {
+    await openGame(page, { pieces: 12, imageId: "waterfall" });
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.imageId ?? "");
+    }).toBe("waterfall");
+    await page.getByTestId("menu-toggle").click();
+    await page.getByTestId("preview").click();
+    await expect(page.getByTestId("preview-image")).toHaveAttribute(
+      "src",
+      /assets\/gallery\/waterfall\.jpg$/
+    );
   });
 
   test("loads a new game with canvas playfield and version in the menu", async ({ page }) => {
@@ -124,13 +142,17 @@ test.describe("Jigsaw playfield flows", () => {
     await expect(page.getByTestId("app-menu")).toBeHidden();
   });
 
-  test("remembers piece count and progress when the app is reopened", async ({ page }) => {
+  test("remembers piece count, image, and progress when the app is reopened", async ({ page }) => {
     await page.goto(`/?e2e=1`);
+    await page.getByTestId("gallery-option-forest").click();
     await page.getByTestId("piece-option-48").click();
     await page.getByTestId("start-puzzle").click();
     await expect.poll(async () => {
       return page.evaluate(() => window.__PUZZLE__?.getState()?.total ?? 0);
     }).toBe(48);
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.imageId ?? "");
+    }).toBe("forest");
     await page.evaluate(() => window.__PUZZLE__.assemblePiece(0));
     await expect.poll(async () => {
       return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? 0);
@@ -141,6 +163,9 @@ test.describe("Jigsaw playfield flows", () => {
     await expect.poll(async () => {
       return page.evaluate(() => window.__PUZZLE__?.getState()?.total ?? 0);
     }).toBe(48);
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.imageId ?? "");
+    }).toBe("forest");
     await expect.poll(async () => {
       return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? 0);
     }).toBe(1);
@@ -217,5 +242,33 @@ test.describe("Jigsaw playfield flows", () => {
       return page.evaluate(() => window.__PUZZLE__?.getState()?.total ?? 0);
     }, { timeout: 30_000 }).toBe(1000);
     await expect(page.getByTestId("playfield")).toBeVisible();
+  });
+
+  test("zoom controls change the playfield camera", async ({ page }) => {
+    await openGame(page, { pieces: 12 });
+    await expect(page.getByTestId("zoom-controls")).toBeVisible();
+    await expect(page.getByTestId("zoom-reset")).toHaveText("100%");
+
+    await page.getByTestId("zoom-in").click();
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getCamera()?.scale ?? 0);
+    }).toBeGreaterThan(1);
+    await expect(page.getByTestId("zoom-reset")).not.toHaveText("100%");
+
+    await page.getByTestId("zoom-reset").click();
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getCamera()?.scale ?? 0);
+    }).toBe(1);
+    await expect(page.getByTestId("zoom-reset")).toHaveText("100%");
+
+    await page.getByTestId("zoom-out").click();
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getCamera()?.scale ?? 2);
+    }).toBeLessThan(1);
+
+    await page.evaluate(() => window.__PUZZLE__.setCamera({ scale: 2, panX: 12, panY: -8 }));
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.camera?.scale ?? 0);
+    }).toBe(2);
   });
 });

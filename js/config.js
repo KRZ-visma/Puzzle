@@ -1,5 +1,8 @@
-/** Shared game constants. Edit here when adding difficulties or images. */
-export const IMAGE_SRC = "assets/puzzle.jpg";
+/** Shared game constants. Edit here when adding difficulties. */
+import { DEFAULT_IMAGE_ID, getGalleryImage } from "./gallery.js";
+
+/** Default puzzle image path (first gallery entry). Prefer gallery helpers for selection. */
+export const IMAGE_SRC = getGalleryImage(DEFAULT_IMAGE_ID).src;
 
 /**
  * Piece counts for the interlocking canvas engine.
@@ -26,3 +29,10 @@ export const TAB_FRACTION = 0.22;
 
 /** Prefix for all localStorage keys used by this app. */
 export const STORAGE_PREFIX = "puzzle:";
+
+/** Playfield camera zoom (view-only; piece world units stay unchanged). */
+export const ZOOM_DEFAULT = 1;
+export const ZOOM_MIN = 0.5;
+export const ZOOM_MAX = 4;
+/** Multiplicative step for +/- controls and keyboard shortcuts. */
+export const ZOOM_STEP = 1.25;

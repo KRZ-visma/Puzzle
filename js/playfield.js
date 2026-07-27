@@ -1,9 +1,19 @@
 /**
  * Canvas playfield: render interlocking pieces and handle pointer drag.
  * Path2D caches + clipped drawImage (scales to 1000+ pieces without per-piece canvases).
+ * View zoom/pan is a camera transform only — piece world units stay unchanged.
  */
 
 import { PRECISE_SNAP_FRACTION, SNAP_FRACTION } from "./config.js";
+import {
+  clampCamera,
+  clampScale,
+  createCamera,
+  panBy,
+  resetCamera,
+  screenToWorld,
+  zoomByStep,
+} from "./camera.js";
 import {
   applyPathCommands,
   buildPiecePathCommands,
@@ -18,7 +28,17 @@ function createPath2D(commands) {
   return path;
 }
 
-export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
+function pointerDistance(a, b) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.hypot(dx, dy);
+}
+
+function pointerMidpoint(a, b) {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCameraChange }) {
   const ctx = canvas.getContext("2d");
   let dpr = 1;
   let cssW = 0;
@@ -38,6 +58,11 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
   let zOrder = [];
   let paths = [];
   let dragging = null;
+  let panning = null;
+  /** @type {Map<number, { x: number, y: number }>} */
+  const activePointers = new Map();
+  let pinch = null;
+  let camera = createCamera();
   let needsDraw = true;
   let raf = 0;
   let showBackgroundImage = true;
@@ -47,6 +72,17 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
     return Math.min(pieceW, pieceH) * snapFraction;
   }
 
+  function fitCamera() {
+    camera = clampCamera(camera, { cssW, cssH, worldW: cssW, worldH: cssH });
+  }
+
+  function setCameraState(next) {
+    camera = clampCamera(next, { cssW, cssH, worldW: cssW, worldH: cssH });
+    onCameraChange?.({ ...camera });
+    scheduleDraw();
+    return { ...camera };
+  }
+
   function resize() {
     const rect = canvas.getBoundingClientRect();
     cssW = Math.max(1, rect.width);
@@ -54,7 +90,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
     dpr = window.devicePixelRatio || 1;
     canvas.width = Math.round(cssW * dpr);
     canvas.height = Math.round(cssH * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    fitCamera();
     scheduleDraw();
   }
 
@@ -119,8 +155,8 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
     const boardH = rows * pieceH;
     ctx.save();
     ctx.strokeStyle = "rgba(31, 58, 46, 0.28)";
-    ctx.lineWidth = 2;
-    ctx.setLineDash([6, 6]);
+    ctx.lineWidth = 2 / camera.scale;
+    ctx.setLineDash([6 / camera.scale, 6 / camera.scale]);
     ctx.strokeRect(originX, originY, boardW, boardH);
     ctx.setLineDash([]);
     if (image && showBackgroundImage) {
@@ -156,15 +192,20 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
     ctx.restore();
     ctx.shadowColor = "transparent";
     ctx.strokeStyle = "rgba(31, 58, 46, 0.45)";
-    ctx.lineWidth = Math.max(0.6, Math.min(pieceW, pieceH) * 0.03);
+    ctx.lineWidth = Math.max(0.6, Math.min(pieceW, pieceH) * 0.03) / camera.scale;
     ctx.stroke(path);
     ctx.restore();
   }
 
   function draw() {
     needsDraw = false;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, cssW, cssH);
     if (!cols) return;
+
+    ctx.save();
+    ctx.translate(camera.panX, camera.panY);
+    ctx.scale(camera.scale, camera.scale);
 
     drawBoardGhost();
 
@@ -175,6 +216,8 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
       const elevate = dragGid !== null && groups.groupOf[id] === dragGid;
       drawPiece(id, elevate);
     }
+
+    ctx.restore();
   }
 
   function scheduleDraw() {
@@ -194,12 +237,12 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
     };
   }
 
-  function hitTest(x, y) {
+  function hitTest(worldX, worldY) {
     for (let i = zOrder.length - 1; i >= 0; i -= 1) {
       const id = zOrder[i];
       const pos = positions[id];
-      const localX = x - pos.x;
-      const localY = y - pos.y;
+      const localX = worldX - pos.x;
+      const localY = worldY - pos.y;
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       const hit = ctx.isPointInPath(paths[id], localX, localY);
@@ -217,34 +260,103 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
     for (const id of members) zOrder.push(id);
   }
 
+  function endPinch() {
+    pinch = null;
+  }
+
+  function beginPinch() {
+    if (activePointers.size < 2) return;
+    const pts = [...activePointers.values()];
+    const a = pts[0];
+    const b = pts[1];
+    dragging = null;
+    panning = null;
+    const mid = pointerMidpoint(a, b);
+    pinch = {
+      startDistance: Math.max(1, pointerDistance(a, b)),
+      startCamera: { ...camera },
+      startMid: mid,
+    };
+  }
+
+  function updatePinch() {
+    if (!pinch || activePointers.size < 2) return;
+    const pts = [...activePointers.values()];
+    const a = pts[0];
+    const b = pts[1];
+    const mid = pointerMidpoint(a, b);
+    const distance = Math.max(1, pointerDistance(a, b));
+    const nextScale = clampScale(pinch.startCamera.scale * (distance / pinch.startDistance));
+    const world = screenToWorld(pinch.startCamera, pinch.startMid.x, pinch.startMid.y);
+    setCameraState({
+      scale: nextScale,
+      panX: mid.x - world.x * nextScale,
+      panY: mid.y - world.y * nextScale,
+    });
+  }
+
   function onPointerDown(event) {
     if (!positions.length) return;
-    canvas.setPointerCapture(event.pointerId);
     const pt = eventPoint(event);
-    const pieceId = hitTest(pt.x, pt.y);
-    if (pieceId === null) {
-      dragging = null;
+    activePointers.set(event.pointerId, pt);
+    canvas.setPointerCapture(event.pointerId);
+
+    if (activePointers.size >= 2) {
+      beginPinch();
       onSelectionChange?.(null);
       return;
     }
+
+    const world = screenToWorld(camera, pt.x, pt.y);
+    const pieceId = hitTest(world.x, world.y);
+    if (pieceId === null) {
+      dragging = null;
+      panning = {
+        pointerId: event.pointerId,
+        lastX: pt.x,
+        lastY: pt.y,
+      };
+      onSelectionChange?.(null);
+      return;
+    }
+    panning = null;
     bringGroupToFront(pieceId);
     dragging = {
       pieceId,
       pointerId: event.pointerId,
-      lastX: pt.x,
-      lastY: pt.y,
+      lastX: world.x,
+      lastY: world.y,
     };
     onSelectionChange?.(pieceId);
     scheduleDraw();
   }
 
   function onPointerMove(event) {
-    if (!dragging || event.pointerId !== dragging.pointerId) return;
+    if (!activePointers.has(event.pointerId)) return;
     const pt = eventPoint(event);
-    const dx = pt.x - dragging.lastX;
-    const dy = pt.y - dragging.lastY;
-    dragging.lastX = pt.x;
-    dragging.lastY = pt.y;
+    activePointers.set(event.pointerId, pt);
+
+    if (pinch || activePointers.size >= 2) {
+      if (!pinch && activePointers.size >= 2) beginPinch();
+      updatePinch();
+      return;
+    }
+
+    if (panning && event.pointerId === panning.pointerId) {
+      const dx = pt.x - panning.lastX;
+      const dy = pt.y - panning.lastY;
+      panning.lastX = pt.x;
+      panning.lastY = pt.y;
+      setCameraState(panBy(camera, dx, dy));
+      return;
+    }
+
+    if (!dragging || event.pointerId !== dragging.pointerId) return;
+    const world = screenToWorld(camera, pt.x, pt.y);
+    const dx = world.x - dragging.lastX;
+    const dy = world.y - dragging.lastY;
+    dragging.lastX = world.x;
+    dragging.lastY = world.y;
     const members = groups.members.get(groups.groupOf[dragging.pieceId]);
     for (const id of members) {
       positions[id].x += dx;
@@ -254,17 +366,43 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
   }
 
   function onPointerUp(event) {
-    if (!dragging || event.pointerId !== dragging.pointerId) return;
-    const pieceId = dragging.pieceId;
-    dragging = null;
-    onDragEnd?.(pieceId);
-    scheduleDraw();
+    const wasDragging = dragging && event.pointerId === dragging.pointerId;
+    const pieceId = wasDragging ? dragging.pieceId : null;
+
+    activePointers.delete(event.pointerId);
+    if (panning && event.pointerId === panning.pointerId) {
+      panning = null;
+    }
+
+    if (activePointers.size < 2) {
+      endPinch();
+    }
+    if (activePointers.size === 1 && !dragging && !panning) {
+      // Remaining finger becomes a pan gesture (common after pinch).
+      const [pointerId, pt] = activePointers.entries().next().value;
+      panning = { pointerId, lastX: pt.x, lastY: pt.y };
+    }
+
+    if (wasDragging) {
+      dragging = null;
+      onDragEnd?.(pieceId);
+      scheduleDraw();
+    }
+  }
+
+  function onWheel(event) {
+    if (!cols) return;
+    event.preventDefault();
+    const pt = eventPoint(event);
+    const direction = event.deltaY < 0 ? 1 : -1;
+    setCameraState(zoomByStep(camera, direction, pt.x, pt.y));
   }
 
   canvas.addEventListener("pointerdown", onPointerDown);
   canvas.addEventListener("pointermove", onPointerMove);
   canvas.addEventListener("pointerup", onPointerUp);
   canvas.addEventListener("pointercancel", onPointerUp);
+  canvas.addEventListener("wheel", onWheel, { passive: false });
 
   const ro = new ResizeObserver(() => {
     const prevW = pieceW;
@@ -314,6 +452,10 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
       rows = r;
       groups = g;
       edgeMap = createEdgeMap(cols, rows, seed);
+      dragging = null;
+      panning = null;
+      pinch = null;
+      activePointers.clear();
       resize();
       boardSize();
       buildPaths();
@@ -324,8 +466,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
         scatterPositions(scatterRng || Math.random);
       }
       zOrder = Array.from({ length: total }, (_, i) => i);
-      dragging = null;
-      scheduleDraw();
+      setCameraState(resetCamera());
     },
 
     getLayout() {
@@ -356,6 +497,26 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
       scheduleDraw();
     },
 
+    getCamera() {
+      return { ...camera };
+    },
+
+    setCamera(next) {
+      return setCameraState(createCamera(next));
+    },
+
+    resetView() {
+      return setCameraState(resetCamera());
+    },
+
+    zoomIn(screenX = cssW / 2, screenY = cssH / 2) {
+      return setCameraState(zoomByStep(camera, 1, screenX, screenY));
+    },
+
+    zoomOut(screenX = cssW / 2, screenY = cssH / 2) {
+      return setCameraState(zoomByStep(camera, -1, screenX, screenY));
+    },
+
     /** Test helper: place a piece (and its group) at the solved seat. */
     placePieceSolved(pieceId) {
       const solved = solvedPosition(pieceId, cols, pieceW, pieceH, originX, originY);
@@ -375,6 +536,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointercancel", onPointerUp);
+      canvas.removeEventListener("wheel", onWheel);
       if (raf) cancelAnimationFrame(raf);
     },
   };

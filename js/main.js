@@ -1,16 +1,18 @@
-import { IMAGE_SRC } from "./config.js";
-import { els } from "./dom.js";
+import { getGalleryImage } from "./gallery.js";
 import { createGame } from "./game.js";
 import { clearProgress, loadProgress } from "./progress.js";
 import {
   bindChrome,
   setStatus,
+  setZoomLabel,
   showPreview,
   showWin,
   showStartMenu,
   setDifficultyControls,
+  setImageControls,
   getSelectedDifficulty,
   setHardOptionControls,
+  getSelectedImageId,
   setAppVersion,
   showUpdateBanner,
   bindUpdateBanner,
@@ -20,8 +22,10 @@ import { applyUpdate, initPwa } from "./pwa.js";
 import {
   loadDifficultyPreference,
   loadHardOptions,
+  loadImagePreference,
   saveDifficultyPreference,
   saveHardOptions,
+  saveImagePreference,
 } from "./settings.js";
 
 /**
@@ -37,7 +41,9 @@ if (new URLSearchParams(window.location.search).get("e2e") === "1") {
 
 const savedProgress = loadProgress();
 const savedDifficulty = savedProgress?.difficulty ?? loadDifficultyPreference();
+const savedImageId = savedProgress?.imageId ?? loadImagePreference();
 setDifficultyControls(savedDifficulty);
+setImageControls(savedImageId);
 const hardOptions = setHardOptionControls(loadHardOptions());
 game.setHardOptions(hardOptions);
 setStatus("");
@@ -49,31 +55,60 @@ if (savedProgress) {
   showStartMenu(true);
 }
 
+/**
+ * Load a gallery image into the game (and preview).
+ * @param {string} imageId
+ * @param {() => void} [onReady]
+ */
+function loadPuzzleImage(imageId, onReady) {
+  const entry = getGalleryImage(imageId);
+  const img = new Image();
+  img.onload = () => {
+    game.setImage(img);
+    setImageControls(entry.id);
+    onReady?.();
+  };
+  img.onerror = () => {
+    setStatus("Could not load the puzzle image. You can still start a puzzle.");
+    onReady?.();
+  };
+  img.src = entry.src;
+}
+
 function returnToStartMenu() {
   game.abandonProgress();
   showWin(false);
   showPreview(false);
   closeAppMenu();
   setDifficultyControls(loadDifficultyPreference());
+  setImageControls(loadImagePreference());
   showStartMenu(true);
   setStatus("");
 }
 
 function startPuzzleFromMenu() {
   const n = saveDifficultyPreference(getSelectedDifficulty());
+  const imageId = saveImagePreference(getSelectedImageId());
   setDifficultyControls(n);
+  setImageControls(imageId);
   showWin(false);
   showStartMenu(false);
   clearProgress();
-  game.newGame();
+  loadPuzzleImage(imageId, () => {
+    game.newGame();
+  });
 }
 
 function resumeSavedProgress(progress) {
   setDifficultyControls(progress.difficulty);
   saveDifficultyPreference(progress.difficulty);
+  setImageControls(progress.imageId);
+  saveImagePreference(progress.imageId);
   showWin(false);
   showStartMenu(false);
-  game.restoreGame(progress);
+  loadPuzzleImage(progress.imageId, () => {
+    game.restoreGame(progress);
+  });
 }
 
 bindChrome({
@@ -82,12 +117,29 @@ bindChrome({
   onPieceOptionSelect: (n) => {
     saveDifficultyPreference(n);
   },
+  onImageOptionSelect: (id) => {
+    saveImagePreference(id);
+  },
   onStartPuzzle: () => startPuzzleFromMenu(),
   onHardOptionsChange: (options) => {
     const saved = saveHardOptions(options);
     game.setHardOptions(saved);
   },
+  onZoomIn: () => {
+    const camera = game.zoomIn();
+    setZoomLabel(camera.scale);
+  },
+  onZoomOut: () => {
+    const camera = game.zoomOut();
+    setZoomLabel(camera.scale);
+  },
+  onZoomReset: () => {
+    const camera = game.resetView();
+    setZoomLabel(camera.scale);
+  },
 });
+
+setZoomLabel(game.getCamera().scale);
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
@@ -112,17 +164,8 @@ initPwa({
   },
 });
 
-const img = new Image();
-img.onload = () => {
-  game.setImage(img);
-  if (savedProgress) {
-    resumeSavedProgress(savedProgress);
-  }
-};
-img.onerror = () => {
-  setStatus("Could not load the puzzle image. You can still start a puzzle.");
-  if (savedProgress) {
-    resumeSavedProgress(savedProgress);
-  }
-};
-img.src = IMAGE_SRC;
+if (savedProgress) {
+  resumeSavedProgress(savedProgress);
+} else {
+  loadPuzzleImage(savedImageId);
+}

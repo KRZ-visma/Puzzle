@@ -1,4 +1,5 @@
 import { DEFAULT_DIFFICULTY } from "./config.js";
+import { DEFAULT_IMAGE_ID, getGalleryImage, normalizeImageId } from "./gallery.js";
 import { els } from "./dom.js";
 import { DEFAULT_HARD_OPTIONS, normalizeDifficulty, normalizeHardOptions } from "./settings.js";
 
@@ -6,6 +7,7 @@ import { DEFAULT_HARD_OPTIONS, normalizeDifficulty, normalizeHardOptions } from 
 
 let selectedDifficulty = DEFAULT_DIFFICULTY;
 let hardOptions = { ...DEFAULT_HARD_OPTIONS };
+let selectedImageId = DEFAULT_IMAGE_ID;
 
 function setToggleControl(button, on) {
   if (!button) return;
@@ -97,12 +99,45 @@ export function getHardOptions() {
   return { ...hardOptions };
 }
 
+/** Sync start-menu gallery selection and preview image. */
+export function setImageControls(value) {
+  const id = normalizeImageId(value);
+  selectedImageId = id;
+  for (const btn of els.galleryOptions) {
+    const selected = btn.dataset.imageId === id;
+    btn.setAttribute("aria-pressed", selected ? "true" : "false");
+    btn.classList.toggle("is-selected", selected);
+  }
+  setPreviewImage(getGalleryImage(id).src);
+  return id;
+}
+
+export function getSelectedImageId() {
+  return normalizeImageId(selectedImageId);
+}
+
+/** Update the preview modal image source. */
+export function setPreviewImage(src) {
+  if (!els.previewImage || !src) return;
+  els.previewImage.src = src;
+}
+
+export function setZoomLabel(scale) {
+  if (!els.zoomResetBtn) return;
+  const pct = Math.round((Number(scale) || 1) * 100);
+  els.zoomResetBtn.textContent = `${pct}%`;
+}
+
 export function bindChrome({
   onRestart,
   onPlayAgain,
   onStartPuzzle,
   onPieceOptionSelect,
   onHardOptionsChange,
+  onImageOptionSelect,
+  onZoomIn,
+  onZoomOut,
+  onZoomReset,
 }) {
   els.menuToggle?.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -159,7 +194,19 @@ export function bindChrome({
     });
   }
 
+  for (const btn of els.galleryOptions) {
+    btn.addEventListener("click", () => {
+      const id = normalizeImageId(btn.dataset.imageId);
+      setImageControls(id);
+      onImageOptionSelect?.(id);
+    });
+  }
+
   els.startBtn?.addEventListener("click", () => onStartPuzzle?.());
+
+  els.zoomInBtn?.addEventListener("click", () => onZoomIn?.());
+  els.zoomOutBtn?.addEventListener("click", () => onZoomOut?.());
+  els.zoomResetBtn?.addEventListener("click", () => onZoomReset?.());
 }
 
 export function setAppVersion(version) {

@@ -1,4 +1,5 @@
 import { DEFAULT_DIFFICULTY, DIFFICULTIES } from "./config.js";
+import { DEFAULT_IMAGE_ID, normalizeImageId } from "./gallery.js";
 import { loadJson, saveJson } from "./storage.js";
 
 /** localStorage key for the player's preferred piece count. */
@@ -6,6 +7,9 @@ const DIFFICULTY_PREF = "difficulty";
 
 /** localStorage key for hard-mode menu toggles. */
 const HARD_OPTIONS_PREF = "hardOptions";
+
+/** localStorage key for the player's preferred gallery image. */
+const IMAGE_PREF = "imageId";
 
 /** Default hard-mode toggles (all off = easier). */
 export const DEFAULT_HARD_OPTIONS = Object.freeze({
@@ -69,4 +73,20 @@ export function saveHardOptions(value) {
   const next = normalizeHardOptions(value);
   saveJson(HARD_OPTIONS_PREF, next);
   return next;
+}
+
+/** Read the last chosen gallery image id. */
+export function loadImagePreference() {
+  return normalizeImageId(loadJson(IMAGE_PREF, DEFAULT_IMAGE_ID));
+}
+
+/**
+ * Persist the gallery image preference.
+ * @param {unknown} value
+ * @returns {string} normalized image id that was saved
+ */
+export function saveImagePreference(value) {
+  const id = normalizeImageId(value);
+  saveJson(IMAGE_PREF, id);
+  return id;
 }

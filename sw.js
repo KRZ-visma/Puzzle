@@ -1,7 +1,7 @@
 /* Service worker — caches the app shell and applies updates when a new version is available. */
-/* CACHE_VERSION: 2026.07.26.7 */
+/* CACHE_VERSION: 2026.07.27.9 */
 
-const CACHE_VERSION = "2026.07.26.7";
+const CACHE_VERSION = "2026.07.27.9";
 const CACHE_NAME = `puzzle-${CACHE_VERSION}`;
 
 const SHELL = [
@@ -16,9 +16,11 @@ const SHELL = [
   "./css/menu.css",
   "./css/playfield.css",
   "./css/modals.css",
+  "./css/gallery.css",
   "./css/pwa.css",
   "./js/main.js",
   "./js/config.js",
+  "./js/gallery.js",
   "./js/utils.js",
   "./js/storage.js",
   "./js/settings.js",
@@ -28,12 +30,16 @@ const SHELL = [
   "./js/groups.js",
   "./js/snap.js",
   "./js/dom.js",
+  "./js/camera.js",
   "./js/playfield.js",
   "./js/ui.js",
   "./js/game.js",
   "./js/rules.js",
   "./js/pwa.js",
-  "./assets/puzzle.jpg",
+  "./assets/gallery/woods.jpg",
+  "./assets/gallery/village.jpg",
+  "./assets/gallery/waterfall.jpg",
+  "./assets/gallery/forest.jpg",
   "./assets/icons/icon-192.png",
   "./assets/icons/icon-512.png",
   "./assets/icons/apple-touch-icon.png",

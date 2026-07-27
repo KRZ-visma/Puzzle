@@ -17,7 +17,13 @@ export const els = {
   startModal: document.getElementById("start-modal"),
   startBtn: document.getElementById("start-btn"),
   pieceOptions: document.getElementById("start-modal")?.querySelectorAll(".piece-option") ?? [],
+  galleryOptions: document.getElementById("start-modal")?.querySelectorAll(".gallery-option") ?? [],
+  previewImage: document.querySelector("#preview-modal .preview-image"),
   appVersion: document.getElementById("app-version"),
   updateBanner: document.getElementById("update-banner"),
   reloadUpdate: document.getElementById("reload-update"),
+  zoomControls: document.getElementById("zoom-controls"),
+  zoomInBtn: document.getElementById("zoom-in-btn"),
+  zoomOutBtn: document.getElementById("zoom-out-btn"),
+  zoomResetBtn: document.getElementById("zoom-reset-btn"),
 };
