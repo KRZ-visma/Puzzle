@@ -416,6 +416,9 @@ export function createGame() {
       image = img;
       playfield.setImage(img);
     },
+    setHardOptions(options) {
+      playfield.setHardOptions(options);
+    },
     zoomIn,
     zoomOut,
     resetView,
@@ -450,6 +453,7 @@ export function createGame() {
         placed,
         locked: placed,
         total: totalPieces(),
+        threshold: layout.threshold,
         positions: positions.map((p) => ({ ...p })),
         layout: {
           pieceW: layout.pieceW,

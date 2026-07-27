@@ -11,6 +11,7 @@ import {
   setDifficultyControls,
   setImageControls,
   getSelectedDifficulty,
+  setHardOptionControls,
   getSelectedImageId,
   setAppVersion,
   showUpdateBanner,
@@ -20,8 +21,10 @@ import {
 import { applyUpdate, initPwa } from "./pwa.js";
 import {
   loadDifficultyPreference,
+  loadHardOptions,
   loadImagePreference,
   saveDifficultyPreference,
+  saveHardOptions,
   saveImagePreference,
 } from "./settings.js";
 
@@ -41,6 +44,8 @@ const savedDifficulty = savedProgress?.difficulty ?? loadDifficultyPreference();
 const savedImageId = savedProgress?.imageId ?? loadImagePreference();
 setDifficultyControls(savedDifficulty);
 setImageControls(savedImageId);
+const hardOptions = setHardOptionControls(loadHardOptions());
+game.setHardOptions(hardOptions);
 setStatus("");
 
 // Resume immediately when a valid save exists so pieces reopen in place.
@@ -116,6 +121,10 @@ bindChrome({
     saveImagePreference(id);
   },
   onStartPuzzle: () => startPuzzleFromMenu(),
+  onHardOptionsChange: (options) => {
+    const saved = saveHardOptions(options);
+    game.setHardOptions(saved);
+  },
   onClearArea: () => {
     game.clearPuzzleArea();
   },

@@ -4,7 +4,7 @@
  * View zoom/pan is a camera transform only — piece world units stay unchanged.
  */
 
-import { SNAP_FRACTION } from "./config.js";
+import { PRECISE_SNAP_FRACTION, SNAP_FRACTION } from "./config.js";
 import {
   clampCamera,
   clampScale,
@@ -66,9 +66,11 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
   let camera = createCamera();
   let needsDraw = true;
   let raf = 0;
+  let showBackgroundImage = true;
+  let snapFraction = SNAP_FRACTION;
 
   function threshold() {
-    return Math.min(pieceW, pieceH) * SNAP_FRACTION;
+    return Math.min(pieceW, pieceH) * snapFraction;
   }
 
   function fitCamera() {
@@ -158,7 +160,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
     ctx.setLineDash([6 / camera.scale, 6 / camera.scale]);
     ctx.strokeRect(originX, originY, boardW, boardH);
     ctx.setLineDash([]);
-    if (image) {
+    if (image && showBackgroundImage) {
       ctx.globalAlpha = 0.12;
       ctx.drawImage(image, originX, originY, boardW, boardH);
       ctx.globalAlpha = 1;
@@ -443,6 +445,20 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
   return {
     setImage(img) {
       image = img;
+      scheduleDraw();
+    },
+
+    /**
+     * Apply hard-mode visual/snap options from the menu.
+     * @param {{ hideBackgroundImage?: boolean, preciseSnap?: boolean }} options
+     */
+    setHardOptions(options = {}) {
+      if (typeof options.hideBackgroundImage === "boolean") {
+        showBackgroundImage = !options.hideBackgroundImage;
+      }
+      if (typeof options.preciseSnap === "boolean") {
+        snapFraction = options.preciseSnap ? PRECISE_SNAP_FRACTION : SNAP_FRACTION;
+      }
       scheduleDraw();
     },
 

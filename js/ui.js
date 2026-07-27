@@ -1,12 +1,20 @@
 import { DEFAULT_DIFFICULTY } from "./config.js";
 import { DEFAULT_IMAGE_ID, getGalleryImage, normalizeImageId } from "./gallery.js";
 import { els } from "./dom.js";
-import { normalizeDifficulty } from "./settings.js";
+import { DEFAULT_HARD_OPTIONS, normalizeDifficulty, normalizeHardOptions } from "./settings.js";
 
 /** Status text, menu, and modal chrome. */
 
 let selectedDifficulty = DEFAULT_DIFFICULTY;
+let hardOptions = { ...DEFAULT_HARD_OPTIONS };
 let selectedImageId = DEFAULT_IMAGE_ID;
+
+function setToggleControl(button, on) {
+  if (!button) return;
+  button.setAttribute("aria-checked", on ? "true" : "false");
+  const state = button.querySelector(".app-menu-toggle-state");
+  if (state) state.textContent = on ? "On" : "Off";
+}
 
 export function setStatus(message) {
   if (!els.status) return;
@@ -17,6 +25,7 @@ export function setStatus(message) {
 export function updateProgress(_placed, _total, _groups) {}
 
 export function showPreview(visible) {
+  if (visible && hardOptions.disablePreview) return;
   els.previewModal.hidden = !visible;
   if (visible) closeAppMenu();
 }
@@ -71,6 +80,25 @@ export function getSelectedDifficulty() {
   return normalizeDifficulty(selectedDifficulty);
 }
 
+/** Sync hard-mode menu toggles and Preview availability. */
+export function setHardOptionControls(value) {
+  hardOptions = normalizeHardOptions(value);
+  setToggleControl(els.toggleHideBackground, hardOptions.hideBackgroundImage);
+  setToggleControl(els.togglePreciseSnap, hardOptions.preciseSnap);
+  setToggleControl(els.toggleDisablePreview, hardOptions.disablePreview);
+  if (els.previewBtn) {
+    els.previewBtn.hidden = hardOptions.disablePreview;
+  }
+  if (hardOptions.disablePreview) {
+    showPreview(false);
+  }
+  return { ...hardOptions };
+}
+
+export function getHardOptions() {
+  return { ...hardOptions };
+}
+
 /** Sync start-menu gallery selection and preview image. */
 export function setImageControls(value) {
   const id = normalizeImageId(value);
@@ -105,6 +133,7 @@ export function bindChrome({
   onPlayAgain,
   onStartPuzzle,
   onPieceOptionSelect,
+  onHardOptionsChange,
   onImageOptionSelect,
   onClearArea,
   onZoomIn,
@@ -125,6 +154,23 @@ export function bindChrome({
 
   els.previewBtn?.addEventListener("click", () => showPreview(true));
   els.closePreview?.addEventListener("click", () => showPreview(false));
+
+  const hardToggleBindings = [
+    [els.toggleHideBackground, "hideBackgroundImage"],
+    [els.togglePreciseSnap, "preciseSnap"],
+    [els.toggleDisablePreview, "disablePreview"],
+  ];
+  for (const [button, key] of hardToggleBindings) {
+    button?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const next = {
+        ...hardOptions,
+        [key]: !hardOptions[key],
+      };
+      setHardOptionControls(next);
+      onHardOptionsChange?.(getHardOptions());
+    });
+  }
 
   els.previewModal?.addEventListener("click", (event) => {
     if (event.target === els.previewModal) showPreview(false);

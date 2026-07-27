@@ -244,6 +244,40 @@ test.describe("Jigsaw playfield flows", () => {
     await expect(page.getByTestId("app-menu")).toBeHidden();
   });
 
+  test("hard-mode toggles persist and affect preview and snap", async ({ page }) => {
+    await openGame(page, { pieces: 12 });
+
+    const defaultThreshold = await page.evaluate(() => window.__PUZZLE__?.getState()?.threshold);
+    expect(defaultThreshold).toBeGreaterThan(0);
+
+    await page.getByTestId("menu-toggle").click();
+    await expect(page.getByTestId("toggle-hide-background")).toHaveAttribute("aria-checked", "false");
+    await expect(page.getByTestId("toggle-precise-snap")).toHaveAttribute("aria-checked", "false");
+    await expect(page.getByTestId("toggle-disable-preview")).toHaveAttribute("aria-checked", "false");
+
+    await page.getByTestId("toggle-hide-background").click();
+    await page.getByTestId("toggle-precise-snap").click();
+    await page.getByTestId("toggle-disable-preview").click();
+
+    await expect(page.getByTestId("toggle-hide-background")).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByTestId("toggle-precise-snap")).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByTestId("toggle-disable-preview")).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByTestId("preview")).toBeHidden();
+    await expect(page.getByTestId("toggle-hide-background-state")).toHaveText("On");
+
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.threshold ?? 0);
+    }).toBeLessThan(defaultThreshold);
+
+    await page.reload();
+    await expect(page.getByTestId("start-modal")).toBeHidden();
+    await page.getByTestId("menu-toggle").click();
+    await expect(page.getByTestId("toggle-hide-background")).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByTestId("toggle-precise-snap")).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByTestId("toggle-disable-preview")).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByTestId("preview")).toBeHidden();
+  });
+
   test("1000-piece difficulty initializes without crashing", async ({ page }) => {
     await openGame(page, { pieces: 1000 });
     await expect.poll(async () => {

@@ -5,8 +5,18 @@ import { loadJson, saveJson } from "./storage.js";
 /** localStorage key for the player's preferred piece count. */
 const DIFFICULTY_PREF = "difficulty";
 
+/** localStorage key for hard-mode menu toggles. */
+const HARD_OPTIONS_PREF = "hardOptions";
+
 /** localStorage key for the player's preferred gallery image. */
 const IMAGE_PREF = "imageId";
+
+/** Default hard-mode toggles (all off = easier). */
+export const DEFAULT_HARD_OPTIONS = Object.freeze({
+  hideBackgroundImage: false,
+  preciseSnap: false,
+  disablePreview: false,
+});
 
 /**
  * Coerce a raw value to a known difficulty, or fall back to the default.
@@ -33,6 +43,36 @@ export function saveDifficultyPreference(value) {
   const n = normalizeDifficulty(value);
   saveJson(DIFFICULTY_PREF, n);
   return n;
+}
+
+/**
+ * Coerce a partial/raw object into a full hard-options record.
+ * @param {unknown} value
+ * @returns {{ hideBackgroundImage: boolean, preciseSnap: boolean, disablePreview: boolean }}
+ */
+export function normalizeHardOptions(value) {
+  const src = value && typeof value === "object" ? value : {};
+  return {
+    hideBackgroundImage: Boolean(src.hideBackgroundImage),
+    preciseSnap: Boolean(src.preciseSnap),
+    disablePreview: Boolean(src.disablePreview),
+  };
+}
+
+/** Read hard-mode toggles (survives open/close). */
+export function loadHardOptions() {
+  return normalizeHardOptions(loadJson(HARD_OPTIONS_PREF, DEFAULT_HARD_OPTIONS));
+}
+
+/**
+ * Persist hard-mode toggles.
+ * @param {unknown} value
+ * @returns {{ hideBackgroundImage: boolean, preciseSnap: boolean, disablePreview: boolean }}
+ */
+export function saveHardOptions(value) {
+  const next = normalizeHardOptions(value);
+  saveJson(HARD_OPTIONS_PREF, next);
+  return next;
 }
 
 /** Read the last chosen gallery image id. */

@@ -21,6 +21,9 @@ export const DEFAULT_DIFFICULTY = 100;
 /** Snap distance as a fraction of the smaller piece side. */
 export const SNAP_FRACTION = 0.28;
 
+/** Tighter snap distance when “Precise snap” is enabled. */
+export const PRECISE_SNAP_FRACTION = 0.15;
+
 /** Tab / blank size as a fraction of the smaller piece side. */
 export const TAB_FRACTION = 0.22;
 
