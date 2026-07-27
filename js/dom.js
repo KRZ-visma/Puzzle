@@ -17,4 +17,8 @@ export const els = {
   appVersion: document.getElementById("app-version"),
   updateBanner: document.getElementById("update-banner"),
   reloadUpdate: document.getElementById("reload-update"),
+  zoomControls: document.getElementById("zoom-controls"),
+  zoomInBtn: document.getElementById("zoom-in-btn"),
+  zoomOutBtn: document.getElementById("zoom-out-btn"),
+  zoomResetBtn: document.getElementById("zoom-reset-btn"),
 };

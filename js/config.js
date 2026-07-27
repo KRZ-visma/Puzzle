@@ -23,3 +23,10 @@ export const TAB_FRACTION = 0.22;
 
 /** Prefix for all localStorage keys used by this app. */
 export const STORAGE_PREFIX = "puzzle:";
+
+/** Playfield camera zoom (view-only; piece world units stay unchanged). */
+export const ZOOM_DEFAULT = 1;
+export const ZOOM_MIN = 0.5;
+export const ZOOM_MAX = 4;
+/** Multiplicative step for +/- controls and keyboard shortcuts. */
+export const ZOOM_STEP = 1.25;

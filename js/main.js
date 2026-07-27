@@ -5,6 +5,7 @@ import { clearProgress, loadProgress } from "./progress.js";
 import {
   bindChrome,
   setStatus,
+  setZoomLabel,
   showPreview,
   showWin,
   showStartMenu,
@@ -75,7 +76,21 @@ bindChrome({
     saveDifficultyPreference(n);
   },
   onStartPuzzle: () => startPuzzleFromMenu(),
+  onZoomIn: () => {
+    const camera = game.zoomIn();
+    setZoomLabel(camera.scale);
+  },
+  onZoomOut: () => {
+    const camera = game.zoomOut();
+    setZoomLabel(camera.scale);
+  },
+  onZoomReset: () => {
+    const camera = game.resetView();
+    setZoomLabel(camera.scale);
+  },
 });
+
+setZoomLabel(game.getCamera().scale);
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
