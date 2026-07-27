@@ -116,6 +116,9 @@ bindChrome({
     saveImagePreference(id);
   },
   onStartPuzzle: () => startPuzzleFromMenu(),
+  onClearArea: () => {
+    game.clearPuzzleArea();
+  },
   onZoomIn: () => {
     const camera = game.zoomIn();
     setZoomLabel(camera.scale);
