@@ -94,86 +94,98 @@
     </header>
 
     <main class="stage stage-playfield">
-      <section class="playfield-panel" aria-label="Jigsaw playfield">
+      <section class="playfield-panel" id="playfield-panel" aria-label="Jigsaw playfield">
         <p id="status" class="status visually-hidden" data-testid="status" aria-live="polite"></p>
-        <canvas
-          id="playfield"
-          class="playfield"
-          data-testid="playfield"
-          role="img"
-          aria-label="Jigsaw puzzle playfield"
-        ></canvas>
-        <button
-          type="button"
-          id="clear-area-btn"
-          class="playfield-btn clear-area-btn"
-          data-testid="clear-area"
-          aria-label="Clear puzzle area"
-          title="Clear puzzle area"
-        >
-          <svg class="playfield-btn-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <rect
-              x="7"
-              y="7"
-              width="10"
-              height="10"
-              rx="1.5"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.75"
-              stroke-dasharray="2.5 2"
-            />
-            <path
-              d="M12 3.25v3.5M12 17.25v3.5M3.25 12h3.5M17.25 12h3.5"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.75"
-              stroke-linecap="round"
-            />
-            <path
-              d="M12 3.25 10.25 5M12 3.25 13.75 5M12 20.75 10.25 19M12 20.75 13.75 19M3.25 12 5 10.25M3.25 12 5 13.75M20.75 12 19 10.25M20.75 12 19 13.75"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.75"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </button>
-        <div id="basket-controls" class="basket-controls" role="group" aria-label="Baskets" data-testid="basket-controls">
+        <aside id="side-tray-left" class="side-tray side-tray-left" hidden aria-label="Left piece tray" data-testid="side-tray-left">
+          <div class="side-tray-scroll" data-testid="side-tray-left-scroll">
+            <canvas id="side-tray-left-canvas" class="side-tray-canvas" data-testid="side-tray-left-canvas"></canvas>
+          </div>
+        </aside>
+        <div class="playfield-main">
+          <canvas
+            id="playfield"
+            class="playfield"
+            data-testid="playfield"
+            role="img"
+            aria-label="Jigsaw puzzle playfield"
+          ></canvas>
           <button
             type="button"
-            id="add-basket-btn"
-            class="playfield-btn"
-            data-testid="add-basket"
-            aria-label="Add basket"
-            title="Add basket"
+            id="clear-area-btn"
+            class="playfield-btn clear-area-btn"
+            data-testid="clear-area"
+            aria-label="Clear puzzle area"
+            title="Clear puzzle area"
           >
-            ＋
+            <svg class="playfield-btn-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <rect
+                x="7"
+                y="7"
+                width="10"
+                height="10"
+                rx="1.5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+                stroke-dasharray="2.5 2"
+              />
+              <path
+                d="M12 3.25v3.5M12 17.25v3.5M3.25 12h3.5M17.25 12h3.5"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+                stroke-linecap="round"
+              />
+              <path
+                d="M12 3.25 10.25 5M12 3.25 13.75 5M12 20.75 10.25 19M12 20.75 13.75 19M3.25 12 5 10.25M3.25 12 5 13.75M20.75 12 19 10.25M20.75 12 19 13.75"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.75"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
           </button>
-          <button
-            type="button"
-            id="remove-basket-btn"
-            class="playfield-btn"
-            data-testid="remove-basket"
-            aria-label="Remove basket"
-            title="Remove basket"
-            disabled
-          >
-            －
-          </button>
+          <div id="basket-controls" class="basket-controls" role="group" aria-label="Baskets" data-testid="basket-controls">
+            <button
+              type="button"
+              id="add-basket-btn"
+              class="playfield-btn"
+              data-testid="add-basket"
+              aria-label="Add basket"
+              title="Add basket"
+            >
+              ＋
+            </button>
+            <button
+              type="button"
+              id="remove-basket-btn"
+              class="playfield-btn"
+              data-testid="remove-basket"
+              aria-label="Remove basket"
+              title="Remove basket"
+              disabled
+            >
+              －
+            </button>
+          </div>
+          <div id="zoom-controls" class="zoom-controls" role="group" aria-label="Zoom" data-testid="zoom-controls">
+            <button type="button" id="zoom-out-btn" class="zoom-btn" data-testid="zoom-out" aria-label="Zoom out">
+              −
+            </button>
+            <button type="button" id="zoom-reset-btn" class="zoom-btn zoom-btn-reset" data-testid="zoom-reset" aria-label="Reset zoom">
+              100%
+            </button>
+            <button type="button" id="zoom-in-btn" class="zoom-btn" data-testid="zoom-in" aria-label="Zoom in">
+              +
+            </button>
+          </div>
         </div>
-        <div id="zoom-controls" class="zoom-controls" role="group" aria-label="Zoom" data-testid="zoom-controls">
-          <button type="button" id="zoom-out-btn" class="zoom-btn" data-testid="zoom-out" aria-label="Zoom out">
-            −
-          </button>
-          <button type="button" id="zoom-reset-btn" class="zoom-btn zoom-btn-reset" data-testid="zoom-reset" aria-label="Reset zoom">
-            100%
-          </button>
-          <button type="button" id="zoom-in-btn" class="zoom-btn" data-testid="zoom-in" aria-label="Zoom in">
-            +
-          </button>
-        </div>
+        <aside id="side-tray-right" class="side-tray side-tray-right" hidden aria-label="Right piece tray" data-testid="side-tray-right">
+          <div class="side-tray-scroll" data-testid="side-tray-right-scroll">
+            <canvas id="side-tray-right-canvas" class="side-tray-canvas" data-testid="side-tray-right-canvas"></canvas>
+          </div>
+        </aside>
       </section>
     </main>
 
@@ -346,7 +358,7 @@
               aria-pressed="false"
             >
               <span class="layout-option-title">Side trays</span>
-              <span class="layout-option-hint">Laid out left and right</span>
+              <span class="layout-option-hint">Always-visible trays with scroll</span>
             </button>
           </div>
         </div>
