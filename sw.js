@@ -28,6 +28,7 @@ const SHELL = [
   "./js/rng.js",
   "./js/geometry.js",
   "./js/groups.js",
+  "./js/clearArea.js",
   "./js/snap.js",
   "./js/dom.js",
   "./js/camera.js",

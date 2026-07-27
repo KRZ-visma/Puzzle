@@ -67,6 +67,43 @@
           role="img"
           aria-label="Jigsaw puzzle playfield"
         ></canvas>
+        <button
+          type="button"
+          id="clear-area-btn"
+          class="playfield-btn clear-area-btn"
+          data-testid="clear-area"
+          aria-label="Clear puzzle area"
+          title="Clear puzzle area"
+        >
+          <svg class="playfield-btn-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <rect
+              x="7"
+              y="7"
+              width="10"
+              height="10"
+              rx="1.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-dasharray="2.5 2"
+            />
+            <path
+              d="M12 3.25v3.5M12 17.25v3.5M3.25 12h3.5M17.25 12h3.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linecap="round"
+            />
+            <path
+              d="M12 3.25 10.25 5M12 3.25 13.75 5M12 20.75 10.25 19M12 20.75 13.75 19M3.25 12 5 10.25M3.25 12 5 13.75M20.75 12 19 10.25M20.75 12 19 13.75"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
         <div id="zoom-controls" class="zoom-controls" role="group" aria-label="Zoom" data-testid="zoom-controls">
           <button type="button" id="zoom-out-btn" class="zoom-btn" data-testid="zoom-out" aria-label="Zoom out">
             −

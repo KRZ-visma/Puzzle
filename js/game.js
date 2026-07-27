@@ -1,3 +1,4 @@
+import { clearPuzzleArea as moveGroupsOffBoard } from "./clearArea.js";
 import { DIFFICULTIES, DEFAULT_DIFFICULTY } from "./config.js";
 import { DEFAULT_IMAGE_ID, normalizeImageId } from "./gallery.js";
 import { els } from "./dom.js";
@@ -252,6 +253,33 @@ export function createGame() {
     // Canvas selection is transient during drag; nothing sticky to clear.
   }
 
+  /** Move every group off the board silhouette, keeping groups connected. */
+  function clearPuzzleArea() {
+    if (!active || !groups || !cols) return 0;
+    const layout = playfield.getLayout();
+    if (!(layout.pieceW > 0) || !(layout.pieceH > 0)) return 0;
+    const positions = playfield.getPositions();
+    const moved = moveGroupsOffBoard({
+      groups,
+      positions,
+      cols,
+      rows,
+      pieceW: layout.pieceW,
+      pieceH: layout.pieceH,
+      originX: layout.originX,
+      originY: layout.originY,
+      cssW: layout.cssW,
+      cssH: layout.cssH,
+    });
+    if (moved > 0) {
+      playfield.redraw();
+      refreshProgress();
+      persist();
+      setStatus("Cleared the puzzle area — groups stay together.");
+    }
+    return moved;
+  }
+
   /** Test/debug: assemble one piece onto the board and resolve snaps. */
   function assemblePiece(pieceId) {
     playfield.placePieceSolved(pieceId);
@@ -347,6 +375,7 @@ export function createGame() {
     abandonProgress,
     persist,
     clearSelection,
+    clearPuzzleArea,
     setImage(img) {
       image = img;
       playfield.setImage(img);
@@ -382,6 +411,14 @@ export function createGame() {
         ),
         total: totalPieces(),
         positions: positions.map((p) => ({ ...p })),
+        layout: {
+          pieceW: layout.pieceW,
+          pieceH: layout.pieceH,
+          originX: layout.originX,
+          originY: layout.originY,
+          cssW: layout.cssW,
+          cssH: layout.cssH,
+        },
         camera,
       };
     },
