@@ -483,7 +483,7 @@ test.describe("Jigsaw playfield flows", () => {
         maxY: originY + rows * pieceH,
       };
       let overlapsBoard = false;
-      let clearedMinGap = Infinity;
+      let clearedHasOnePieceGap = true;
       const clearedIds = [0, 1];
       for (let id = 0; id < state.positions.length; id += 1) {
         const pos = state.positions[id];
@@ -503,8 +503,8 @@ test.describe("Jigsaw playfield flows", () => {
         if (clearedIds.includes(id)) {
           const gapX = Math.max(0, Math.max(board.minX - body.maxX, body.minX - board.maxX));
           const gapY = Math.max(0, Math.max(board.minY - body.maxY, body.minY - board.maxY));
-          const gap = gapX > 0 && gapY > 0 ? Math.min(gapX, gapY) : gapX + gapY;
-          clearedMinGap = Math.min(clearedMinGap, gap);
+          // One-piece clearance on the primary axis (diagonal corner cases can have a small secondary gap).
+          if (!(gapX >= pieceW || gapY >= pieceH)) clearedHasOnePieceGap = false;
         }
       }
       return {
@@ -515,9 +515,7 @@ test.describe("Jigsaw playfield flows", () => {
           y: state.positions[1].y - state.positions[0].y,
         },
         overlapsBoard,
-        clearedMinGap,
-        pieceW,
-        pieceH,
+        clearedHasOnePieceGap,
       };
     });
 
@@ -525,7 +523,7 @@ test.describe("Jigsaw playfield flows", () => {
     expect(after.offset).toEqual(before.offset);
     expect(after.placed).toBe(0);
     expect(after.overlapsBoard).toBe(false);
-    expect(after.clearedMinGap).toBeGreaterThanOrEqual(Math.min(after.pieceW, after.pieceH));
+    expect(after.clearedHasOnePieceGap).toBe(true);
   });
 
   test("clear-area button leaves board-locked pieces in place", async ({ page }) => {
