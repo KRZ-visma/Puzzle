@@ -109,8 +109,35 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
     let marginX = cssW * 0.08;
     let marginY = cssH * 0.1;
     if (layoutMode === LAYOUT_SIDE_TRAYS) {
-      marginX = cssW * 0.2;
-      marginY = cssH * 0.08;
+      marginY = cssH * 0.06;
+      // Grow side gutters until each tray can hold half the pieces in a
+      // non-overlapping grid (capped so the board stays usable).
+      marginX = cssW * 0.18;
+      const total = cols * rows;
+      const perTray = Math.max(1, Math.ceil(total / 2));
+      for (let i = 0; i < 5; i += 1) {
+        const maxBoardW = cssW - marginX * 2;
+        const maxBoardH = cssH - marginY * 2;
+        const aspect = cols / rows;
+        let boardW = maxBoardW;
+        let boardH = boardW / aspect;
+        if (boardH > maxBoardH) {
+          boardH = maxBoardH;
+          boardW = boardH * aspect;
+        }
+        const pw = boardW / cols;
+        const ph = boardH / rows;
+        const gap = 2;
+        const rowsFit = Math.max(1, Math.floor((cssH - gap * 2 + gap) / (ph + gap)));
+        const colsNeeded = Math.max(1, Math.ceil(perTray / rowsFit));
+        const trayNeed = colsNeeded * (pw + gap) - gap + 12;
+        const next = Math.min(cssW * 0.34, Math.max(marginX, trayNeed));
+        if (Math.abs(next - marginX) < 0.5) {
+          marginX = next;
+          break;
+        }
+        marginX = next;
+      }
     } else if (layoutMode === LAYOUT_BASKETS) {
       marginX = cssW * 0.14;
       marginY = cssH * 0.16;

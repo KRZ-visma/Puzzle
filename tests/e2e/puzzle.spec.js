@@ -46,16 +46,47 @@ test.describe("Jigsaw playfield flows", () => {
       const midX = layout.originX + (state.cols * layout.pieceW) / 2;
       let left = 0;
       let right = 0;
+      const leftPositions = [];
+      const rightPositions = [];
       for (const p of positions) {
-        if (p.x + layout.pieceW / 2 < midX) left += 1;
-        else right += 1;
+        if (p.x + layout.pieceW / 2 < midX) {
+          left += 1;
+          leftPositions.push(p);
+        } else {
+          right += 1;
+          rightPositions.push(p);
+        }
       }
-      return { left, right, layoutMode: layout.layoutMode, placed: state.placed };
+      function hasOverlap(list) {
+        for (let i = 0; i < list.length; i += 1) {
+          for (let j = i + 1; j < list.length; j += 1) {
+            const a = list[i];
+            const b = list[j];
+            if (
+              a.x < b.x + layout.pieceW &&
+              a.x + layout.pieceW > b.x &&
+              a.y < b.y + layout.pieceH &&
+              a.y + layout.pieceH > b.y
+            ) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+      return {
+        left,
+        right,
+        layoutMode: layout.layoutMode,
+        placed: state.placed,
+        overlaps: hasOverlap(leftPositions) || hasOverlap(rightPositions),
+      };
     });
     expect(summary.layoutMode).toBe("sideTrays");
     expect(summary.placed).toBe(0);
     expect(summary.left).toBeGreaterThanOrEqual(4);
     expect(summary.right).toBeGreaterThanOrEqual(4);
+    expect(summary.overlaps).toBe(false);
   });
 
   test("starts with baskets so pieces pile near the corners", async ({ page }) => {

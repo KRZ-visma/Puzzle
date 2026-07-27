@@ -1,6 +1,6 @@
 /**
  * Initial piece placement strategies (pure).
- * Modes: scatter (gutters), sideTrays (left/right piles), baskets (corner piles).
+ * Modes: scatter (gutters), sideTrays (left/right grids), baskets (corner piles).
  */
 
 export const LAYOUT_SCATTER = "scatter";
@@ -17,7 +17,7 @@ export const LAYOUT_MODES = Object.freeze([
   {
     id: LAYOUT_SIDE_TRAYS,
     label: "Side trays",
-    hint: "Left and right trays hold the pieces",
+    hint: "Pieces laid out in left and right trays",
   },
   {
     id: LAYOUT_BASKETS,
@@ -113,12 +113,12 @@ export function layoutRegions(mode, { cols, rows, pieceW, pieceH, originX, origi
   const gap = 6;
 
   if (normalized === LAYOUT_SIDE_TRAYS) {
-    const trayTop = Math.max(gap, originY - gap * 2);
-    const trayBottom = Math.min(cssH - gap, originY + boardH + gap * 2);
-    const trayH = Math.max(pieceH, trayBottom - trayTop);
-    const leftW = Math.max(pieceW * 0.75, originX - gap * 2);
+    // Full-height trays so pieces can sit in a non-overlapping grid.
+    const trayTop = gap;
+    const trayH = Math.max(pieceH, cssH - gap * 2);
+    const leftW = Math.max(pieceW, originX - gap * 2);
     const rightX = originX + boardW + gap;
-    const rightW = Math.max(pieceW * 0.75, cssW - rightX - gap);
+    const rightW = Math.max(pieceW, cssW - rightX - gap);
     return [
       { id: "left", x: gap, y: trayTop, w: leftW, h: trayH },
       { id: "right", x: rightX, y: trayTop, w: rightW, h: trayH },
@@ -144,23 +144,47 @@ export function layoutRegions(mode, { cols, rows, pieceW, pieceH, originX, origi
 }
 
 /**
- * Stack piece ids inside a region (vertical spread + light jitter).
+ * Lay piece ids in a non-overlapping grid inside a tray region.
+ * Prefers as few columns as will fit the tray height; never stacks.
  * @param {number[]} ids
  * @param {{ x: number, y: number, w: number, h: number }} region
  */
-function stackInRegion(ids, region, pieceW, pieceH, cssW, cssH, rng, positions) {
-  const maxX = Math.max(region.x, region.x + region.w - pieceW);
-  const maxY = Math.max(region.y, region.y + region.h - pieceH);
-  const baseX = (region.x + maxX) / 2;
-  const usableH = Math.max(1, maxY - region.y);
+function packInRegion(ids, region, pieceW, pieceH, cssW, cssH, positions) {
+  const n = ids.length;
+  if (n === 0) return;
 
-  for (let i = 0; i < ids.length; i += 1) {
-    const t = ids.length <= 1 ? 0.5 : i / (ids.length - 1);
-    const jitterX = (rng() - 0.5) * Math.min(pieceW * 0.45, Math.max(4, region.w * 0.25));
-    const jitterY = (rng() - 0.5) * Math.min(pieceH * 0.35, 10);
-    const x = baseX + jitterX;
-    const y = region.y + t * usableH + jitterY;
-    positions[ids[i]] = clampPiece(x, y, pieceW, pieceH, cssW, cssH);
+  const gap = 2;
+  const cellW = pieceW + gap;
+  const cellH = pieceH + gap;
+  const maxCols = Math.max(1, Math.floor((region.w + gap) / cellW));
+
+  // Fewest columns that still fit vertically in the tray (else use maxCols).
+  let gridCols = maxCols;
+  for (let c = 1; c <= maxCols; c += 1) {
+    const rows = Math.ceil(n / c);
+    if (rows * cellH - gap <= region.h + 0.5) {
+      gridCols = c;
+      break;
+    }
+  }
+  const gridRows = Math.ceil(n / gridCols);
+
+  const usedW = gridCols * cellW - gap;
+  const usedH = gridRows * cellH - gap;
+  const startX = region.x + Math.max(0, (region.w - usedW) / 2);
+  const startY = region.y + Math.max(0, (region.h - usedH) / 2);
+
+  for (let i = 0; i < n; i += 1) {
+    const c = i % gridCols;
+    const r = Math.floor(i / gridCols);
+    positions[ids[i]] = clampPiece(
+      startX + c * cellW,
+      startY + r * cellH,
+      pieceW,
+      pieceH,
+      cssW,
+      cssH
+    );
   }
 }
 
@@ -183,7 +207,7 @@ function pileInRegion(ids, region, pieceW, pieceH, cssW, cssH, rng, positions) {
 }
 
 /**
- * Left/right trays: half the pieces in each vertical tray.
+ * Left/right trays: half the pieces in each tray, laid out without stacking.
  * @returns {{ x: number, y: number }[]}
  */
 export function placeInSideTrays(layout, rng = Math.random) {
@@ -193,8 +217,8 @@ export function placeInSideTrays(layout, rng = Math.random) {
   const regions = layoutRegions(LAYOUT_SIDE_TRAYS, layout);
   const ids = shuffleIds(total, rng);
   const mid = Math.ceil(ids.length / 2);
-  stackInRegion(ids.slice(0, mid), regions[0], pieceW, pieceH, cssW, cssH, rng, positions);
-  stackInRegion(ids.slice(mid), regions[1], pieceW, pieceH, cssW, cssH, rng, positions);
+  packInRegion(ids.slice(0, mid), regions[0], pieceW, pieceH, cssW, cssH, positions);
+  packInRegion(ids.slice(mid), regions[1], pieceW, pieceH, cssW, cssH, positions);
   return positions;
 }
 

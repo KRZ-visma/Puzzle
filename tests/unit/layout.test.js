@@ -77,7 +77,7 @@ test("layoutRegions returns four corner baskets", () => {
   );
 });
 
-test("placeInSideTrays puts pieces into left and right trays", () => {
+test("placeInSideTrays puts pieces into left and right trays without stacking", () => {
   const regions = layoutRegions(LAYOUT_SIDE_TRAYS, layout);
   const positions = placeInSideTrays(layout, fixedRng([0.2, 0.4, 0.6, 0.8]));
   assert.equal(positions.length, 12);
@@ -85,14 +85,37 @@ test("placeInSideTrays puts pieces into left and right trays", () => {
   let leftish = 0;
   let rightish = 0;
   const midX = layout.originX + (layout.cols * layout.pieceW) / 2;
+  /** @type {{ x: number, y: number }[]} */
+  const leftPositions = [];
+  /** @type {{ x: number, y: number }[]} */
+  const rightPositions = [];
   for (const p of positions) {
     const cx = p.x + layout.pieceW / 2;
-    if (cx < midX) leftish += 1;
-    else rightish += 1;
+    if (cx < midX) {
+      leftish += 1;
+      leftPositions.push(p);
+    } else {
+      rightish += 1;
+      rightPositions.push(p);
+    }
     assert.ok(p.x >= 0 && p.y >= 0);
   }
   assert.ok(leftish >= 4);
   assert.ok(rightish >= 4);
+
+  function assertNoOverlap(list) {
+    for (let i = 0; i < list.length; i += 1) {
+      for (let j = i + 1; j < list.length; j += 1) {
+        const a = list[i];
+        const b = list[j];
+        const overlapX = a.x < b.x + layout.pieceW && a.x + layout.pieceW > b.x;
+        const overlapY = a.y < b.y + layout.pieceH && a.y + layout.pieceH > b.y;
+        assert.equal(overlapX && overlapY, false);
+      }
+    }
+  }
+  assertNoOverlap(leftPositions);
+  assertNoOverlap(rightPositions);
 
   // Most piece centers should land near a tray region.
   let nearTray = 0;
