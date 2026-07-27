@@ -12,7 +12,7 @@ const HARD_OPTIONS_PREF = "hardOptions";
 /** localStorage key for the player's preferred gallery image. */
 const IMAGE_PREF = "imageId";
 
-/** localStorage key for initial piece layout (scatter / trays / baskets). */
+/** localStorage key for initial piece layout (scatter / trays). */
 const LAYOUT_PREF = "layoutMode";
 
 /** Default hard-mode toggles (all off = easier). */

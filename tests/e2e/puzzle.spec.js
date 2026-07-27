@@ -31,7 +31,7 @@ test.describe("Jigsaw playfield flows", () => {
     await expect(page.getByTestId("layout-options")).toBeVisible();
     await expect(page.getByTestId("layout-option-scatter")).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByTestId("layout-option-sideTrays")).toBeVisible();
-    await expect(page.getByTestId("layout-option-baskets")).toBeVisible();
+    await expect(page.getByTestId("layout-option-baskets")).toHaveCount(0);
     await expect(page.getByTestId("start-puzzle")).toBeVisible();
     await expect(page.getByTestId("start-lead")).toContainText(/Pick an image/i);
     await expect(page.getByTestId("start-lead")).toContainText(/connect tabs/i);
@@ -89,32 +89,49 @@ test.describe("Jigsaw playfield flows", () => {
     expect(summary.overlaps).toBe(false);
   });
 
-  test("starts with baskets so pieces pile near the corners", async ({ page }) => {
-    await openGame(page, { pieces: 12, layout: "baskets" });
-    const summary = await page.evaluate(() => {
+  test("basket controls start empty and can add, move, and remove baskets", async ({ page }) => {
+    await openGame(page, { pieces: 12 });
+    await expect(page.getByTestId("basket-controls")).toBeVisible();
+    await expect(page.getByTestId("add-basket")).toBeVisible();
+    await expect(page.getByTestId("remove-basket")).toBeDisabled();
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.baskets?.baskets?.length ?? -1);
+    }).toBe(0);
+
+    await page.getByTestId("add-basket").click();
+    await expect(page.getByTestId("remove-basket")).toBeEnabled();
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.baskets?.baskets?.length ?? 0);
+    }).toBe(1);
+
+    const moved = await page.evaluate(() => {
       const state = window.__PUZZLE__.getState();
-      const { positions, layout } = state;
-      const baskets = [
-        { x: 0, y: 0 },
-        { x: layout.cssW, y: 0 },
-        { x: 0, y: layout.cssH },
-        { x: layout.cssW, y: layout.cssH },
-      ];
-      let nearCorner = 0;
-      for (const p of positions) {
-        const cx = p.x + layout.pieceW / 2;
-        const cy = p.y + layout.pieceH / 2;
-        if (
-          baskets.some((b) => Math.hypot(cx - b.x, cy - b.y) < Math.min(layout.cssW, layout.cssH) * 0.42)
-        ) {
-          nearCorner += 1;
-        }
-      }
-      return { nearCorner, layoutMode: layout.layoutMode, placed: state.placed };
+      const basket = state.baskets.baskets[0];
+      window.__PUZZLE__.putPieceInBasket(0, basket.id);
+      const before = window.__PUZZLE__.getState();
+      const pieceBefore = before.positions[0];
+      const basketBefore = before.baskets.baskets[0];
+      window.__PUZZLE__.tryMoveBasket(basket.id, 30, 20);
+      const after = window.__PUZZLE__.getState();
+      return {
+        pieceDx: after.positions[0].x - pieceBefore.x,
+        pieceDy: after.positions[0].y - pieceBefore.y,
+        basketDx: after.baskets.baskets[0].x - basketBefore.x,
+        basketDy: after.baskets.baskets[0].y - basketBefore.y,
+        pieceIds: after.baskets.baskets[0].pieceIds,
+      };
     });
-    expect(summary.layoutMode).toBe("baskets");
-    expect(summary.placed).toBe(0);
-    expect(summary.nearCorner).toBeGreaterThanOrEqual(10);
+    expect(moved.pieceIds).toContain(0);
+    expect(moved.pieceDx).toBeCloseTo(moved.basketDx, 5);
+    expect(moved.pieceDy).toBeCloseTo(moved.basketDy, 5);
+    expect(moved.basketDx).toBeCloseTo(30, 5);
+    expect(moved.basketDy).toBeCloseTo(20, 5);
+
+    await page.getByTestId("remove-basket").click();
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.baskets?.baskets?.length ?? -1);
+    }).toBe(0);
+    await expect(page.getByTestId("remove-basket")).toBeDisabled();
   });
 
   test("starts a puzzle with the selected gallery image", async ({ page }) => {

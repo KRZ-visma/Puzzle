@@ -31,6 +31,7 @@ const SHELL = [
   "./js/groups.js",
   "./js/clearArea.js",
   "./js/layout.js",
+  "./js/baskets.js",
   "./js/snap.js",
   "./js/dom.js",
   "./js/camera.js",

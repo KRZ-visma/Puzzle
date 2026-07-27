@@ -1,11 +1,11 @@
 /**
  * Initial piece placement strategies (pure).
- * Modes: scatter (gutters), sideTrays (left/right grids), baskets (corner piles).
+ * Modes: scatter (gutters), sideTrays (left/right grids).
+ * Movable baskets are a separate mid-game feature (see baskets.js).
  */
 
 export const LAYOUT_SCATTER = "scatter";
 export const LAYOUT_SIDE_TRAYS = "sideTrays";
-export const LAYOUT_BASKETS = "baskets";
 
 /** Ordered start-menu options. */
 export const LAYOUT_MODES = Object.freeze([
@@ -18,11 +18,6 @@ export const LAYOUT_MODES = Object.freeze([
     id: LAYOUT_SIDE_TRAYS,
     label: "Side trays",
     hint: "Pieces laid out in left and right trays",
-  },
-  {
-    id: LAYOUT_BASKETS,
-    label: "Baskets",
-    hint: "Pieces piled in corner baskets",
   },
 ]);
 
@@ -103,17 +98,15 @@ export function placeScattered({
 }
 
 /**
- * Axis-aligned tray / basket regions used for placement and canvas chrome.
+ * Axis-aligned tray regions used for placement and canvas chrome.
  * @returns {{ id: string, x: number, y: number, w: number, h: number }[]}
  */
 export function layoutRegions(mode, { cols, rows, pieceW, pieceH, originX, originY, cssW, cssH }) {
   const normalized = normalizeLayoutMode(mode);
   const boardW = cols * pieceW;
-  const boardH = rows * pieceH;
   const gap = 6;
 
   if (normalized === LAYOUT_SIDE_TRAYS) {
-    // Full-height trays so pieces can sit in a non-overlapping grid.
     const trayTop = gap;
     const trayH = Math.max(pieceH, cssH - gap * 2);
     const leftW = Math.max(pieceW, originX - gap * 2);
@@ -125,27 +118,11 @@ export function layoutRegions(mode, { cols, rows, pieceW, pieceH, originX, origi
     ];
   }
 
-  if (normalized === LAYOUT_BASKETS) {
-    const basketW = Math.max(pieceW * 1.35, Math.min(cssW * 0.22, originX + pieceW * 0.35));
-    const basketH = Math.max(pieceH * 1.35, Math.min(cssH * 0.22, originY + pieceH * 0.35));
-    const left = gap;
-    const right = Math.max(gap, cssW - basketW - gap);
-    const top = gap;
-    const bottom = Math.max(gap, cssH - basketH - gap);
-    return [
-      { id: "nw", x: left, y: top, w: basketW, h: basketH },
-      { id: "ne", x: right, y: top, w: basketW, h: basketH },
-      { id: "sw", x: left, y: bottom, w: basketW, h: basketH },
-      { id: "se", x: right, y: bottom, w: basketW, h: basketH },
-    ];
-  }
-
   return [];
 }
 
 /**
  * Lay piece ids in a non-overlapping grid inside a tray region.
- * Prefers as few columns as will fit the tray height; never stacks.
  * @param {number[]} ids
  * @param {{ x: number, y: number, w: number, h: number }} region
  */
@@ -158,11 +135,10 @@ function packInRegion(ids, region, pieceW, pieceH, cssW, cssH, positions) {
   const cellH = pieceH + gap;
   const maxCols = Math.max(1, Math.floor((region.w + gap) / cellW));
 
-  // Fewest columns that still fit vertically in the tray (else use maxCols).
   let gridCols = maxCols;
   for (let c = 1; c <= maxCols; c += 1) {
-    const rows = Math.ceil(n / c);
-    if (rows * cellH - gap <= region.h + 0.5) {
+    const rowsNeeded = Math.ceil(n / c);
+    if (rowsNeeded * cellH - gap <= region.h + 0.5) {
       gridCols = c;
       break;
     }
@@ -189,24 +165,6 @@ function packInRegion(ids, region, pieceW, pieceH, cssW, cssH, positions) {
 }
 
 /**
- * Pile pieces near the center of a basket with small offsets.
- * @param {number[]} ids
- * @param {{ x: number, y: number, w: number, h: number }} region
- */
-function pileInRegion(ids, region, pieceW, pieceH, cssW, cssH, rng, positions) {
-  const cx = region.x + region.w / 2 - pieceW / 2;
-  const cy = region.y + region.h / 2 - pieceH / 2;
-  const spreadX = Math.max(6, Math.min(pieceW * 0.55, region.w * 0.28));
-  const spreadY = Math.max(6, Math.min(pieceH * 0.55, region.h * 0.28));
-
-  for (let i = 0; i < ids.length; i += 1) {
-    const x = cx + (rng() - 0.5) * 2 * spreadX;
-    const y = cy + (rng() - 0.5) * 2 * spreadY;
-    positions[ids[i]] = clampPiece(x, y, pieceW, pieceH, cssW, cssH);
-  }
-}
-
-/**
  * Left/right trays: half the pieces in each tray, laid out without stacking.
  * @returns {{ x: number, y: number }[]}
  */
@@ -223,34 +181,11 @@ export function placeInSideTrays(layout, rng = Math.random) {
 }
 
 /**
- * Corner baskets: pieces randomly dumped into four piles.
- * @returns {{ x: number, y: number }[]}
- */
-export function placeInBaskets(layout, rng = Math.random) {
-  const { cols, rows, pieceW, pieceH, cssW, cssH } = layout;
-  const total = cols * rows;
-  const positions = new Array(total);
-  const regions = layoutRegions(LAYOUT_BASKETS, layout);
-  const ids = shuffleIds(total, rng);
-  /** @type {number[][]} */
-  const buckets = regions.map(() => []);
-  for (const id of ids) {
-    const bucket = Math.floor(rng() * regions.length);
-    buckets[bucket].push(id);
-  }
-  for (let i = 0; i < regions.length; i += 1) {
-    pileInRegion(buckets[i], regions[i], pieceW, pieceH, cssW, cssH, rng, positions);
-  }
-  return positions;
-}
-
-/**
  * Place every piece for the chosen layout mode.
  * @returns {{ x: number, y: number }[]}
  */
 export function placePieces(mode, layout, rng = Math.random) {
   const normalized = normalizeLayoutMode(mode);
   if (normalized === LAYOUT_SIDE_TRAYS) return placeInSideTrays(layout, rng);
-  if (normalized === LAYOUT_BASKETS) return placeInBaskets(layout, rng);
   return placeScattered({ ...layout, rng });
 }

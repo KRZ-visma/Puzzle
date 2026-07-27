@@ -1,6 +1,7 @@
 import { DEFAULT_DIFFICULTY } from "./config.js";
 import { DEFAULT_IMAGE_ID, getGalleryImage, normalizeImageId } from "./gallery.js";
 import { els } from "./dom.js";
+import { MAX_BASKETS } from "./baskets.js";
 import {
   DEFAULT_HARD_OPTIONS,
   DEFAULT_LAYOUT_MODE,
@@ -151,6 +152,18 @@ export function setZoomLabel(scale) {
   els.zoomResetBtn.textContent = `${pct}%`;
 }
 
+/** Enable/disable remove-basket based on current basket count. */
+export function setBasketControls(count) {
+  const n = Math.max(0, Number(count) || 0);
+  if (els.removeBasketBtn) {
+    els.removeBasketBtn.disabled = n <= 0;
+  }
+  if (els.addBasketBtn) {
+    els.addBasketBtn.disabled = n >= MAX_BASKETS;
+  }
+  return n;
+}
+
 export function bindChrome({
   onRestart,
   onPlayAgain,
@@ -160,6 +173,8 @@ export function bindChrome({
   onImageOptionSelect,
   onLayoutOptionSelect,
   onClearArea,
+  onAddBasket,
+  onRemoveBasket,
   onZoomIn,
   onZoomOut,
   onZoomReset,
@@ -238,6 +253,8 @@ export function bindChrome({
   els.startBtn?.addEventListener("click", () => onStartPuzzle?.());
 
   els.clearAreaBtn?.addEventListener("click", () => onClearArea?.());
+  els.addBasketBtn?.addEventListener("click", () => onAddBasket?.());
+  els.removeBasketBtn?.addEventListener("click", () => onRemoveBasket?.());
   els.zoomInBtn?.addEventListener("click", () => onZoomIn?.());
   els.zoomOutBtn?.addEventListener("click", () => onZoomOut?.());
   els.zoomResetBtn?.addEventListener("click", () => onZoomReset?.());

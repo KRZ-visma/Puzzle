@@ -22,13 +22,23 @@ import {
   solvedPosition,
 } from "./geometry.js";
 import {
-  LAYOUT_BASKETS,
   LAYOUT_SCATTER,
   LAYOUT_SIDE_TRAYS,
   layoutRegions,
   normalizeLayoutMode,
   placePieces,
 } from "./layout.js";
+import {
+  addBasket as addBasketRecord,
+  createBasketState,
+  hitTestBasket,
+  nestlePiecesInBasket,
+  putPiecesInBasket,
+  removeBasket as removeBasketRecord,
+  removePiecesFromBaskets,
+  snapshotBaskets,
+  translateBasket,
+} from "./baskets.js";
 import { isPieceOnSeat } from "./snap.js";
 
 function createPath2D(commands) {
@@ -47,7 +57,7 @@ function pointerMidpoint(a, b) {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }
 
-export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCameraChange }) {
+export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCameraChange, onBasketsChange }) {
   const ctx = canvas.getContext("2d");
   let dpr = 1;
   let cssW = 0;
@@ -67,6 +77,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
   let zOrder = [];
   let paths = [];
   let dragging = null;
+  let draggingBasket = null;
   let panning = null;
   /** @type {Map<number, { x: number, y: number }>} */
   const activePointers = new Map();
@@ -77,6 +88,11 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
   let showBackgroundImage = true;
   let snapFraction = SNAP_FRACTION;
   let layoutMode = LAYOUT_SCATTER;
+  let basketState = createBasketState();
+
+  function emitBasketsChange() {
+    onBasketsChange?.(snapshotBaskets(basketState));
+  }
 
   function threshold() {
     return Math.min(pieceW, pieceH) * snapFraction;
@@ -105,13 +121,11 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
   }
 
   function boardSize() {
-    // Side trays need wide left/right gutters; baskets need corner room.
+    // Side trays need wide left/right gutters for a non-overlapping grid.
     let marginX = cssW * 0.08;
     let marginY = cssH * 0.1;
     if (layoutMode === LAYOUT_SIDE_TRAYS) {
       marginY = cssH * 0.06;
-      // Grow side gutters until each tray can hold half the pieces in a
-      // non-overlapping grid (capped so the board stays usable).
       marginX = cssW * 0.18;
       const total = cols * rows;
       const perTray = Math.max(1, Math.ceil(total / 2));
@@ -138,9 +152,6 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
         }
         marginX = next;
       }
-    } else if (layoutMode === LAYOUT_BASKETS) {
-      marginX = cssW * 0.14;
-      marginY = cssH * 0.16;
     }
     const maxBoardW = cssW - marginX * 2;
     const maxBoardH = cssH - marginY * 2;
@@ -180,10 +191,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
 
     ctx.save();
     for (const region of regions) {
-      const radius =
-        layoutMode === LAYOUT_BASKETS
-          ? Math.min(region.w, region.h) * 0.28
-          : Math.min(18, Math.min(region.w, region.h) * 0.12);
+      const radius = Math.min(18, Math.min(region.w, region.h) * 0.12);
       const r = Math.max(0, Math.min(radius, region.w / 2, region.h / 2));
       ctx.beginPath();
       if (typeof ctx.roundRect === "function") {
@@ -197,17 +205,63 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
         ctx.arcTo(x, y, x + w, y, r);
         ctx.closePath();
       }
-      ctx.fillStyle =
-        layoutMode === LAYOUT_BASKETS ? "rgba(212, 160, 74, 0.22)" : "rgba(31, 58, 46, 0.07)";
+      ctx.fillStyle = "rgba(31, 58, 46, 0.07)";
       ctx.fill();
-      ctx.strokeStyle =
-        layoutMode === LAYOUT_BASKETS ? "rgba(176, 120, 40, 0.45)" : "rgba(31, 58, 46, 0.22)";
+      ctx.strokeStyle = "rgba(31, 58, 46, 0.22)";
       ctx.lineWidth = 1.5 / camera.scale;
-      if (layoutMode === LAYOUT_SIDE_TRAYS) {
-        ctx.setLineDash([5 / camera.scale, 4 / camera.scale]);
-      }
+      ctx.setLineDash([5 / camera.scale, 4 / camera.scale]);
       ctx.stroke();
       ctx.setLineDash([]);
+    }
+    ctx.restore();
+  }
+
+  function drawRoundRectPath(x, y, w, h, radius) {
+    const r = Math.max(0, Math.min(radius, w / 2, h / 2));
+    ctx.beginPath();
+    if (typeof ctx.roundRect === "function") {
+      ctx.roundRect(x, y, w, h, r);
+      return;
+    }
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function drawBaskets() {
+    if (!basketState.baskets.length) return;
+    ctx.save();
+    for (const basket of basketState.baskets) {
+      const selected = basket.id === basketState.selectedId;
+      const elevating = draggingBasket && draggingBasket.basketId === basket.id;
+      const radius = Math.min(basket.w, basket.h) * 0.18;
+      if (elevating) {
+        ctx.shadowColor = "rgba(31, 58, 46, 0.28)";
+        ctx.shadowBlur = 14;
+        ctx.shadowOffsetY = 5;
+      }
+      drawRoundRectPath(basket.x, basket.y, basket.w, basket.h, radius);
+      ctx.fillStyle = selected ? "rgba(212, 160, 74, 0.28)" : "rgba(212, 160, 74, 0.2)";
+      ctx.fill();
+      ctx.shadowColor = "transparent";
+      ctx.strokeStyle = selected ? "rgba(176, 120, 40, 0.7)" : "rgba(176, 120, 40, 0.45)";
+      ctx.lineWidth = (selected ? 2.25 : 1.75) / camera.scale;
+      ctx.stroke();
+
+      // Soft inner well
+      const inset = Math.min(10, basket.w * 0.08, basket.h * 0.08);
+      drawRoundRectPath(
+        basket.x + inset,
+        basket.y + inset,
+        basket.w - inset * 2,
+        basket.h - inset * 2,
+        radius * 0.7
+      );
+      ctx.fillStyle = "rgba(255, 250, 240, 0.22)";
+      ctx.fill();
     }
     ctx.restore();
   }
@@ -270,6 +324,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
     ctx.scale(camera.scale, camera.scale);
 
     drawLayoutChrome();
+    drawBaskets();
     drawBoardGhost();
 
     const dragGid =
@@ -347,6 +402,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
     const a = pts[0];
     const b = pts[1];
     dragging = null;
+    draggingBasket = null;
     panning = null;
     const mid = pointerMidpoint(a, b);
     pinch = {
@@ -372,6 +428,28 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
     });
   }
 
+  function groupMemberIds(pieceId) {
+    if (!groups) return [pieceId];
+    return [...groups.members.get(groups.groupOf[pieceId])];
+  }
+
+  function tryStoreGroupInBasket(pieceId) {
+    if (!groups || isLocked(pieceId)) return false;
+    const members = groupMemberIds(pieceId);
+    for (const id of members) {
+      if (isLocked(id)) return false;
+    }
+    const pos = positions[pieceId];
+    const cx = pos.x + pieceW / 2;
+    const cy = pos.y + pieceH / 2;
+    const basket = hitTestBasket(basketState.baskets, cx, cy);
+    if (!basket) return false;
+    putPiecesInBasket(basketState, basket.id, members);
+    nestlePiecesInBasket(basket, positions, pieceW, pieceH);
+    emitBasketsChange();
+    return true;
+  }
+
   function onPointerDown(event) {
     if (!positions.length) return;
     const pt = eventPoint(event);
@@ -380,32 +458,55 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
 
     if (activePointers.size >= 2) {
       beginPinch();
+      draggingBasket = null;
       onSelectionChange?.(null);
       return;
     }
 
     const world = screenToWorld(camera, pt.x, pt.y);
     const pieceId = hitTest(world.x, world.y);
-    if (pieceId === null) {
-      dragging = null;
-      panning = {
+    if (pieceId !== null) {
+      draggingBasket = null;
+      panning = null;
+      removePiecesFromBaskets(basketState, groupMemberIds(pieceId));
+      emitBasketsChange();
+      bringGroupToFront(pieceId);
+      dragging = {
+        pieceId,
         pointerId: event.pointerId,
-        lastX: pt.x,
-        lastY: pt.y,
+        lastX: world.x,
+        lastY: world.y,
       };
-      onSelectionChange?.(null);
+      onSelectionChange?.(pieceId);
+      scheduleDraw();
       return;
     }
-    panning = null;
-    bringGroupToFront(pieceId);
-    dragging = {
-      pieceId,
+
+    const basket = hitTestBasket(basketState.baskets, world.x, world.y);
+    if (basket) {
+      dragging = null;
+      panning = null;
+      basketState.selectedId = basket.id;
+      emitBasketsChange();
+      draggingBasket = {
+        basketId: basket.id,
+        pointerId: event.pointerId,
+        lastX: world.x,
+        lastY: world.y,
+      };
+      onSelectionChange?.(null);
+      scheduleDraw();
+      return;
+    }
+
+    dragging = null;
+    draggingBasket = null;
+    panning = {
       pointerId: event.pointerId,
-      lastX: world.x,
-      lastY: world.y,
+      lastX: pt.x,
+      lastY: pt.y,
     };
-    onSelectionChange?.(pieceId);
-    scheduleDraw();
+    onSelectionChange?.(null);
   }
 
   function onPointerMove(event) {
@@ -428,8 +529,22 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
       return;
     }
 
-    if (!dragging || event.pointerId !== dragging.pointerId) return;
     const world = screenToWorld(camera, pt.x, pt.y);
+
+    if (draggingBasket && event.pointerId === draggingBasket.pointerId) {
+      const basket = basketState.baskets.find((b) => b.id === draggingBasket.basketId);
+      if (basket) {
+        const dx = world.x - draggingBasket.lastX;
+        const dy = world.y - draggingBasket.lastY;
+        draggingBasket.lastX = world.x;
+        draggingBasket.lastY = world.y;
+        translateBasket(basket, positions, dx, dy, cssW, cssH);
+        scheduleDraw();
+      }
+      return;
+    }
+
+    if (!dragging || event.pointerId !== dragging.pointerId) return;
     const dx = world.x - dragging.lastX;
     const dy = world.y - dragging.lastY;
     dragging.lastX = world.x;
@@ -444,6 +559,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
 
   function onPointerUp(event) {
     const wasDragging = dragging && event.pointerId === dragging.pointerId;
+    const wasBasket = draggingBasket && event.pointerId === draggingBasket.pointerId;
     const pieceId = wasDragging ? dragging.pieceId : null;
 
     activePointers.delete(event.pointerId);
@@ -454,14 +570,20 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
     if (activePointers.size < 2) {
       endPinch();
     }
-    if (activePointers.size === 1 && !dragging && !panning) {
-      // Remaining finger becomes a pan gesture (common after pinch).
+    if (activePointers.size === 1 && !dragging && !draggingBasket && !panning) {
       const [pointerId, pt] = activePointers.entries().next().value;
       panning = { pointerId, lastX: pt.x, lastY: pt.y };
     }
 
+    if (wasBasket) {
+      draggingBasket = null;
+      emitBasketsChange();
+      scheduleDraw();
+    }
+
     if (wasDragging) {
       dragging = null;
+      tryStoreGroupInBasket(pieceId);
       onDragEnd?.(pieceId);
       scheduleDraw();
     }
@@ -497,6 +619,14 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
         const relY = (pos.y - prevOriginY) * sy;
         pos.x = originX + relX;
         pos.y = originY + relY;
+      }
+      for (const basket of basketState.baskets) {
+        const relX = (basket.x - prevOriginX) * sx;
+        const relY = (basket.y - prevOriginY) * sy;
+        basket.x = originX + relX;
+        basket.y = originY + relY;
+        basket.w *= sx;
+        basket.h *= sy;
       }
       buildPaths();
     }
@@ -539,9 +669,12 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
       layoutMode = normalizeLayoutMode(nextLayoutMode ?? LAYOUT_SCATTER);
       edgeMap = createEdgeMap(cols, rows, seed);
       dragging = null;
+      draggingBasket = null;
       panning = null;
       pinch = null;
       activePointers.clear();
+      basketState = createBasketState();
+      emitBasketsChange();
       resize();
       boardSize();
       buildPaths();
@@ -553,6 +686,57 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
       }
       zOrder = Array.from({ length: total }, (_, i) => i);
       setCameraState(resetCamera());
+    },
+
+    addBasket() {
+      if (!cols) return null;
+      const basket = addBasketRecord(basketState, layoutMetrics());
+      if (!basket) return null;
+      emitBasketsChange();
+      scheduleDraw();
+      return { ...basket, pieceIds: [...basket.pieceIds] };
+    },
+
+    removeBasket(basketId) {
+      const removed = removeBasketRecord(basketState, basketId);
+      if (!removed) return null;
+      emitBasketsChange();
+      scheduleDraw();
+      return { ...removed, pieceIds: [...removed.pieceIds] };
+    },
+
+    getBaskets() {
+      return snapshotBaskets(basketState);
+    },
+
+    /**
+     * Test helper: move a basket by (dx, dy), carrying contained pieces.
+     * @returns {boolean}
+     */
+    tryMoveBasket(basketId, dx, dy) {
+      const basket = basketState.baskets.find((b) => b.id === basketId);
+      if (!basket) return false;
+      translateBasket(basket, positions, dx, dy, cssW, cssH);
+      basketState.selectedId = basketId;
+      emitBasketsChange();
+      scheduleDraw();
+      return true;
+    },
+
+    /**
+     * Test helper: put a piece group into a basket.
+     * @returns {boolean}
+     */
+    putPieceInBasket(pieceId, basketId) {
+      if (!groups || isLocked(pieceId)) return false;
+      const members = groupMemberIds(pieceId);
+      const ok = putPiecesInBasket(basketState, basketId, members);
+      if (!ok) return false;
+      const basket = basketState.baskets.find((b) => b.id === basketId);
+      if (basket) nestlePiecesInBasket(basket, positions, pieceW, pieceH, () => 0.5);
+      emitBasketsChange();
+      scheduleDraw();
+      return true;
     },
 
     getLayout() {
@@ -610,10 +794,12 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
       const dx = solved.x - positions[pieceId].x;
       const dy = solved.y - positions[pieceId].y;
       const members = groups.members.get(groups.groupOf[pieceId]);
+      removePiecesFromBaskets(basketState, [...members]);
       for (const id of members) {
         positions[id].x += dx;
         positions[id].y += dy;
       }
+      emitBasketsChange();
       scheduleDraw();
     },
 

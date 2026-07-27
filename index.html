@@ -140,6 +140,29 @@
             />
           </svg>
         </button>
+        <div id="basket-controls" class="basket-controls" role="group" aria-label="Baskets" data-testid="basket-controls">
+          <button
+            type="button"
+            id="add-basket-btn"
+            class="playfield-btn"
+            data-testid="add-basket"
+            aria-label="Add basket"
+            title="Add basket"
+          >
+            ＋
+          </button>
+          <button
+            type="button"
+            id="remove-basket-btn"
+            class="playfield-btn"
+            data-testid="remove-basket"
+            aria-label="Remove basket"
+            title="Remove basket"
+            disabled
+          >
+            －
+          </button>
+        </div>
         <div id="zoom-controls" class="zoom-controls" role="group" aria-label="Zoom" data-testid="zoom-controls">
           <button type="button" id="zoom-out-btn" class="zoom-btn" data-testid="zoom-out" aria-label="Zoom out">
             −
@@ -324,16 +347,6 @@
             >
               <span class="layout-option-title">Side trays</span>
               <span class="layout-option-hint">Laid out left and right</span>
-            </button>
-            <button
-              type="button"
-              class="layout-option"
-              data-layout="baskets"
-              data-testid="layout-option-baskets"
-              aria-pressed="false"
-            >
-              <span class="layout-option-title">Baskets</span>
-              <span class="layout-option-hint">Corner baskets for piles</span>
             </button>
           </div>
         </div>

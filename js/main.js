@@ -11,6 +11,7 @@ import {
   setDifficultyControls,
   setImageControls,
   setLayoutControls,
+  setBasketControls,
   getSelectedDifficulty,
   setHardOptionControls,
   getSelectedImageId,
@@ -51,6 +52,7 @@ setImageControls(savedImageId);
 setLayoutControls(loadLayoutPreference());
 const hardOptions = setHardOptionControls(loadHardOptions());
 game.setHardOptions(hardOptions);
+setBasketControls(0);
 setStatus("");
 
 // Resume immediately when a valid save exists so pieces reopen in place.
@@ -138,6 +140,12 @@ bindChrome({
   },
   onClearArea: () => {
     game.clearPuzzleArea();
+  },
+  onAddBasket: () => {
+    game.addBasket();
+  },
+  onRemoveBasket: () => {
+    game.removeBasket();
   },
   onZoomIn: () => {
     const camera = game.zoomIn();

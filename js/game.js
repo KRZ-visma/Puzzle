@@ -25,6 +25,7 @@ import {
   getSelectedLayoutMode,
   setStatus,
   setZoomLabel,
+  setBasketControls,
   updateProgress,
   showPreview,
   showWin,
@@ -56,12 +57,16 @@ export function createGame() {
     onCameraChange(camera) {
       setZoomLabel(camera.scale);
     },
+    onBasketsChange(snapshot) {
+      setBasketControls(snapshot.baskets.length);
+    },
   });
 
   function syncZoomLabel() {
     setZoomLabel(playfield.getCamera().scale);
   }
 
+  setBasketControls(0);
   syncZoomLabel();
 
   function totalPieces() {
@@ -410,6 +415,28 @@ export function createGame() {
     return camera;
   }
 
+  function addBasket() {
+    if (!active) return null;
+    const basket = playfield.addBasket();
+    if (basket) {
+      setStatus("Basket added — drag pieces into it, or drag the basket to move them.");
+    }
+    return basket;
+  }
+
+  function removeBasket() {
+    if (!active) return null;
+    const removed = playfield.removeBasket();
+    if (removed) {
+      setStatus(
+        playfield.getBaskets().baskets.length
+          ? "Basket removed. Pieces stay where they were."
+          : "No baskets left."
+      );
+    }
+    return removed;
+  }
+
   return {
     newGame,
     restoreGame,
@@ -417,6 +444,8 @@ export function createGame() {
     persist,
     clearSelection,
     clearPuzzleArea,
+    addBasket,
+    removeBasket,
     setImage(img) {
       image = img;
       playfield.setImage(img);
@@ -435,10 +464,13 @@ export function createGame() {
     solve,
     tryMoveGroup,
     isPieceLocked,
+    tryMoveBasket: (basketId, dx, dy) => playfield.tryMoveBasket(basketId, dx, dy),
+    putPieceInBasket: (pieceId, basketId) => playfield.putPieceInBasket(pieceId, basketId),
     getState: () => {
       const layout = playfield.getLayout();
       const positions = playfield.getPositions();
       const camera = playfield.getCamera();
+      const baskets = playfield.getBaskets();
       const placed = countPlacedPieces(
         positions,
         cols,
@@ -460,6 +492,7 @@ export function createGame() {
         total: totalPieces(),
         threshold: layout.threshold,
         positions: positions.map((p) => ({ ...p })),
+        baskets,
         layout: {
           pieceW: layout.pieceW,
           pieceH: layout.pieceH,

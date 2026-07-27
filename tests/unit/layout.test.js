@@ -2,12 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   DEFAULT_LAYOUT_MODE,
-  LAYOUT_BASKETS,
   LAYOUT_SCATTER,
   LAYOUT_SIDE_TRAYS,
   layoutRegions,
   normalizeLayoutMode,
-  placeInBaskets,
   placeInSideTrays,
   placePieces,
   placeScattered,
@@ -37,7 +35,7 @@ const layout = {
 test("normalizeLayoutMode accepts known modes and falls back", () => {
   assert.equal(normalizeLayoutMode("scatter"), LAYOUT_SCATTER);
   assert.equal(normalizeLayoutMode("sideTrays"), LAYOUT_SIDE_TRAYS);
-  assert.equal(normalizeLayoutMode("baskets"), LAYOUT_BASKETS);
+  assert.equal(normalizeLayoutMode("baskets"), DEFAULT_LAYOUT_MODE);
   assert.equal(normalizeLayoutMode("nope"), DEFAULT_LAYOUT_MODE);
   assert.equal(normalizeLayoutMode(null), DEFAULT_LAYOUT_MODE);
 });
@@ -68,13 +66,8 @@ test("layoutRegions returns left/right trays for sideTrays", () => {
   assert.ok(regions[1].x >= layout.originX + layout.cols * layout.pieceW - 1);
 });
 
-test("layoutRegions returns four corner baskets", () => {
-  const regions = layoutRegions(LAYOUT_BASKETS, layout);
-  assert.equal(regions.length, 4);
-  assert.deepEqual(
-    regions.map((r) => r.id),
-    ["nw", "ne", "sw", "se"]
-  );
+test("layoutRegions returns none for scatter", () => {
+  assert.deepEqual(layoutRegions(LAYOUT_SCATTER, layout), []);
 });
 
 test("placeInSideTrays puts pieces into left and right trays without stacking", () => {
@@ -117,7 +110,6 @@ test("placeInSideTrays puts pieces into left and right trays without stacking", 
   assertNoOverlap(leftPositions);
   assertNoOverlap(rightPositions);
 
-  // Most piece centers should land near a tray region.
   let nearTray = 0;
   for (const p of positions) {
     const cx = p.x + layout.pieceW / 2;
@@ -137,37 +129,10 @@ test("placeInSideTrays puts pieces into left and right trays without stacking", 
   assert.equal(nearTray, 12);
 });
 
-test("placeInBaskets piles pieces near the four corner baskets", () => {
-  const regions = layoutRegions(LAYOUT_BASKETS, layout);
-  const positions = placeInBaskets(layout, fixedRng([0.15, 0.35, 0.55, 0.75, 0.95]));
-  assert.equal(positions.length, 12);
-
-  let nearBasket = 0;
-  for (const p of positions) {
-    const cx = p.x + layout.pieceW / 2;
-    const cy = p.y + layout.pieceH / 2;
-    if (
-      regions.some(
-        (r) =>
-          cx >= r.x - layout.pieceW * 0.5 &&
-          cx <= r.x + r.w + layout.pieceW * 0.5 &&
-          cy >= r.y - layout.pieceH * 0.5 &&
-          cy <= r.y + r.h + layout.pieceH * 0.5
-      )
-    ) {
-      nearBasket += 1;
-    }
-  }
-  assert.ok(nearBasket >= 10);
-});
-
 test("placePieces dispatches by mode", () => {
   const scatter = placePieces(LAYOUT_SCATTER, layout, () => 0.25);
   const trays = placePieces(LAYOUT_SIDE_TRAYS, layout, () => 0.25);
-  const baskets = placePieces(LAYOUT_BASKETS, layout, () => 0.25);
   assert.equal(scatter.length, 12);
   assert.equal(trays.length, 12);
-  assert.equal(baskets.length, 12);
   assert.notDeepEqual(scatter, trays);
-  assert.notDeepEqual(trays, baskets);
 });
