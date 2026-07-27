@@ -1,9 +1,11 @@
 /**
  * Clear the board silhouette by translating overlapping groups into the gutters.
  * Pure helpers — keep relative piece offsets (groups stay connected).
+ * Board-locked groups (every member on its solved seat) are left in place.
  */
 
 import { translateGroup } from "./groups.js";
+import { isGroupOnBoard } from "./snap.js";
 
 /** Axis-aligned bounds of every piece body in a group. */
 export function groupBounds(memberIds, positions, pieceW, pieceH) {
@@ -119,8 +121,8 @@ export function translationOffBoard(
 }
 
 /**
- * Translate every group that overlaps the board silhouette into a gutter.
- * Returns how many groups were moved.
+ * Translate every unlocked group that overlaps the board silhouette into a gutter.
+ * Board-locked groups stay on their seats. Returns how many groups were moved.
  */
 export function clearPuzzleArea({
   groups,
@@ -152,6 +154,11 @@ export function clearPuzzleArea({
     const gid = groups.groupOf[id];
     if (seen.has(gid)) continue;
     seen.add(gid);
+
+    // Correctly seated groups are locked — do not clear them off the board.
+    if (isGroupOnBoard(groups, positions, id, cols, pieceW, pieceH, originX, originY)) {
+      continue;
+    }
 
     const members = groups.members.get(gid);
     const bounds = groupBounds(members, positions, pieceW, pieceH);
