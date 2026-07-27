@@ -38,7 +38,7 @@ function pointerMidpoint(a, b) {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }
 
-export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
+export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCameraChange }) {
   const ctx = canvas.getContext("2d");
   let dpr = 1;
   let cssW = 0;
@@ -76,6 +76,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
 
   function setCameraState(next) {
     camera = clampCamera(next, { cssW, cssH, worldW: cssW, worldH: cssH });
+    onCameraChange?.({ ...camera });
     scheduleDraw();
     return { ...camera };
   }
@@ -435,7 +436,6 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
       rows = r;
       groups = g;
       edgeMap = createEdgeMap(cols, rows, seed);
-      camera = resetCamera();
       dragging = null;
       panning = null;
       pinch = null;
@@ -450,7 +450,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
         scatterPositions(scatterRng || Math.random);
       }
       zOrder = Array.from({ length: total }, (_, i) => i);
-      scheduleDraw();
+      setCameraState(resetCamera());
     },
 
     getLayout() {

@@ -47,6 +47,9 @@ export function createGame() {
     onDragEnd(pieceId) {
       afterDrop(pieceId);
     },
+    onCameraChange(camera) {
+      setZoomLabel(camera.scale);
+    },
   });
 
   function syncZoomLabel() {
