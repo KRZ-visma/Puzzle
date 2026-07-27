@@ -2,7 +2,7 @@ import { clearPuzzleArea as moveGroupsOffBoard } from "./clearArea.js";
 import { DIFFICULTIES, DEFAULT_DIFFICULTY } from "./config.js";
 import { DEFAULT_IMAGE_ID, normalizeImageId } from "./gallery.js";
 import { els } from "./dom.js";
-import { createGroups, groupCount, mergeGroups } from "./groups.js";
+import { createGroups, groupCount, mergeGroups, translateGroup } from "./groups.js";
 import { createPlayfield } from "./playfield.js";
 import {
   buildProgress,
@@ -14,6 +14,7 @@ import {
 import { createRng } from "./rng.js";
 import {
   countPlacedPieces,
+  isGroupOnBoard,
   isPuzzleSolved,
   snapGroupToBoard,
   snapGroupToNeighbors,
@@ -114,6 +115,8 @@ export function createGame() {
       pieceW: layout.pieceW,
       pieceH: layout.pieceH,
       threshold: layout.threshold,
+      originX: layout.originX,
+      originY: layout.originY,
     });
 
     const boarded = snapGroupToBoard({
@@ -138,6 +141,8 @@ export function createGame() {
       pieceW: layout.pieceW,
       pieceH: layout.pieceH,
       threshold: layout.threshold,
+      originX: layout.originX,
+      originY: layout.originY,
     });
 
     playfield.redraw();
@@ -153,7 +158,7 @@ export function createGame() {
     if (neighborMerges + extraMerges > 0 || boarded) {
       setStatus(
         boarded
-          ? "Snapped to the board. Keep connecting pieces."
+          ? "Locked on the board. Keep connecting pieces."
           : "Pieces connected! Drag the group to keep building."
       );
     } else {
@@ -286,6 +291,37 @@ export function createGame() {
     afterDrop(pieceId);
   }
 
+  /**
+   * Test helper: attempt to move a group. Returns false when the group is
+   * locked on the board (correct seats) and must stay put.
+   */
+  function tryMoveGroup(pieceId, dx, dy) {
+    if (!groups || !cols) return false;
+    const layout = playfield.getLayout();
+    const positions = playfield.getPositions();
+    if (
+      isGroupOnBoard(
+        groups,
+        positions,
+        pieceId,
+        cols,
+        layout.pieceW,
+        layout.pieceH,
+        layout.originX,
+        layout.originY
+      )
+    ) {
+      return false;
+    }
+    translateGroup(groups, positions, pieceId, dx, dy);
+    playfield.redraw();
+    return true;
+  }
+
+  function isPieceLocked(pieceId) {
+    return playfield.isPieceLocked(pieceId);
+  }
+
   /** Test/debug: connect piece to a cardinal neighbor if both exist. */
   function connectNeighbors(pieceId, direction = "right") {
     const layout = playfield.getLayout();
@@ -389,10 +425,20 @@ export function createGame() {
     assemblePiece,
     connectNeighbors,
     solve,
+    tryMoveGroup,
+    isPieceLocked,
     getState: () => {
       const layout = playfield.getLayout();
       const positions = playfield.getPositions();
       const camera = playfield.getCamera();
+      const placed = countPlacedPieces(
+        positions,
+        cols,
+        layout.pieceW,
+        layout.pieceH,
+        layout.originX,
+        layout.originY
+      );
       return {
         cols,
         rows,
@@ -401,14 +447,8 @@ export function createGame() {
         imageId,
         active,
         groups: groups ? groupCount(groups) : 0,
-        placed: countPlacedPieces(
-          positions,
-          cols,
-          layout.pieceW,
-          layout.pieceH,
-          layout.originX,
-          layout.originY
-        ),
+        placed,
+        locked: placed,
         total: totalPieces(),
         positions: positions.map((p) => ({ ...p })),
         layout: {

@@ -102,7 +102,49 @@ test.describe("Jigsaw playfield flows", () => {
     await expect.poll(async () => {
       return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? 0);
     }).toBe(1);
-    await expect(page.getByTestId("status")).toContainText(/Snapped to the board|Keep connecting|Drag pieces/i);
+    await expect(page.getByTestId("status")).toContainText(/Locked on the board|Keep connecting|Drag pieces/i);
+  });
+
+  test("pieces locked on the board cannot be moved", async ({ page }) => {
+    await openGame(page, { pieces: 12 });
+    await page.evaluate(() => window.__PUZZLE__.assemblePiece(0));
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.isPieceLocked?.(0) ?? false);
+    }).toBe(true);
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.locked ?? 0);
+    }).toBe(1);
+
+    const result = await page.evaluate(() => {
+      const before = window.__PUZZLE__.getState().positions[0];
+      const moved = window.__PUZZLE__.tryMoveGroup(0, 40, -30);
+      const after = window.__PUZZLE__.getState().positions[0];
+      return { moved, before, after };
+    });
+    expect(result.moved).toBe(false);
+    expect(result.after).toEqual(result.before);
+  });
+
+  test("connecting a free neighbor onto a locked piece keeps the board fixed", async ({ page }) => {
+    await openGame(page, { pieces: 12 });
+    await page.evaluate(() => {
+      window.__PUZZLE__.assemblePiece(0);
+      window.__PUZZLE__.assemblePiece(1);
+    });
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? 0);
+    }).toBe(2);
+    // Two separately locked neighbors merge in place into one board group.
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.groups ?? 0);
+    }).toBe(11);
+    await expect.poll(async () => {
+      return page.evaluate(
+        () => window.__PUZZLE__?.isPieceLocked?.(0) && window.__PUZZLE__?.isPieceLocked?.(1)
+      );
+    }).toBe(true);
+    const moved = await page.evaluate(() => window.__PUZZLE__.tryMoveGroup(0, 25, 25));
+    expect(moved).toBe(false);
   });
 
   test("connecting neighbors reduces group count", async ({ page }) => {
