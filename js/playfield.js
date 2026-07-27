@@ -3,7 +3,7 @@
  * Path2D caches + clipped drawImage (scales to 1000+ pieces without per-piece canvases).
  */
 
-import { SNAP_FRACTION } from "./config.js";
+import { PRECISE_SNAP_FRACTION, SNAP_FRACTION } from "./config.js";
 import {
   applyPathCommands,
   buildPiecePathCommands,
@@ -40,9 +40,11 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
   let dragging = null;
   let needsDraw = true;
   let raf = 0;
+  let showBackgroundImage = true;
+  let snapFraction = SNAP_FRACTION;
 
   function threshold() {
-    return Math.min(pieceW, pieceH) * SNAP_FRACTION;
+    return Math.min(pieceW, pieceH) * snapFraction;
   }
 
   function resize() {
@@ -121,7 +123,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
     ctx.setLineDash([6, 6]);
     ctx.strokeRect(originX, originY, boardW, boardH);
     ctx.setLineDash([]);
-    if (image) {
+    if (image && showBackgroundImage) {
       ctx.globalAlpha = 0.12;
       ctx.drawImage(image, originX, originY, boardW, boardH);
       ctx.globalAlpha = 1;
@@ -290,6 +292,20 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange }) {
   return {
     setImage(img) {
       image = img;
+      scheduleDraw();
+    },
+
+    /**
+     * Apply hard-mode visual/snap options from the menu.
+     * @param {{ hideBackgroundImage?: boolean, preciseSnap?: boolean }} options
+     */
+    setHardOptions(options = {}) {
+      if (typeof options.hideBackgroundImage === "boolean") {
+        showBackgroundImage = !options.hideBackgroundImage;
+      }
+      if (typeof options.preciseSnap === "boolean") {
+        snapFraction = options.preciseSnap ? PRECISE_SNAP_FRACTION : SNAP_FRACTION;
+      }
       scheduleDraw();
     },
 

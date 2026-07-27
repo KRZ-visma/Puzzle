@@ -50,6 +50,42 @@
           <button type="button" id="preview-btn" class="app-menu-item" data-testid="preview" role="menuitem">
             Preview
           </button>
+          <div class="app-menu-section" role="group" aria-label="Difficulty options">
+            <p class="app-menu-section-label">Harder</p>
+            <button
+              type="button"
+              id="toggle-hide-background"
+              class="app-menu-item app-menu-toggle"
+              data-testid="toggle-hide-background"
+              role="menuitemcheckbox"
+              aria-checked="false"
+            >
+              <span class="app-menu-toggle-label">Hide background image</span>
+              <span class="app-menu-toggle-state" data-testid="toggle-hide-background-state">Off</span>
+            </button>
+            <button
+              type="button"
+              id="toggle-precise-snap"
+              class="app-menu-item app-menu-toggle"
+              data-testid="toggle-precise-snap"
+              role="menuitemcheckbox"
+              aria-checked="false"
+            >
+              <span class="app-menu-toggle-label">Precise snap</span>
+              <span class="app-menu-toggle-state" data-testid="toggle-precise-snap-state">Off</span>
+            </button>
+            <button
+              type="button"
+              id="toggle-disable-preview"
+              class="app-menu-item app-menu-toggle"
+              data-testid="toggle-disable-preview"
+              role="menuitemcheckbox"
+              aria-checked="false"
+            >
+              <span class="app-menu-toggle-label">Disable preview</span>
+              <span class="app-menu-toggle-state" data-testid="toggle-disable-preview-state">Off</span>
+            </button>
+          </div>
           <p class="app-menu-version version-label">
             Version <code id="app-version" data-testid="app-version">…</code>
           </p>

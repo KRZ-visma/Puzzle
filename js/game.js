@@ -298,6 +298,9 @@ export function createGame() {
       image = img;
       playfield.setImage(img);
     },
+    setHardOptions(options) {
+      playfield.setHardOptions(options);
+    },
     // Test/debug mirrors
     assemblePiece,
     connectNeighbors,
@@ -321,6 +324,7 @@ export function createGame() {
           layout.originY
         ),
         total: totalPieces(),
+        threshold: layout.threshold,
         positions: positions.map((p) => ({ ...p })),
       };
     },

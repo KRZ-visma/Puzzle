@@ -10,13 +10,19 @@ import {
   showStartMenu,
   setDifficultyControls,
   getSelectedDifficulty,
+  setHardOptionControls,
   setAppVersion,
   showUpdateBanner,
   bindUpdateBanner,
   closeAppMenu,
 } from "./ui.js";
 import { applyUpdate, initPwa } from "./pwa.js";
-import { loadDifficultyPreference, saveDifficultyPreference } from "./settings.js";
+import {
+  loadDifficultyPreference,
+  loadHardOptions,
+  saveDifficultyPreference,
+  saveHardOptions,
+} from "./settings.js";
 
 /**
  * App entry. Wire chrome controls, PWA updates, and start a game once the image is ready.
@@ -32,6 +38,8 @@ if (new URLSearchParams(window.location.search).get("e2e") === "1") {
 const savedProgress = loadProgress();
 const savedDifficulty = savedProgress?.difficulty ?? loadDifficultyPreference();
 setDifficultyControls(savedDifficulty);
+const hardOptions = setHardOptionControls(loadHardOptions());
+game.setHardOptions(hardOptions);
 setStatus("");
 
 // Resume immediately when a valid save exists so pieces reopen in place.
@@ -75,6 +83,10 @@ bindChrome({
     saveDifficultyPreference(n);
   },
   onStartPuzzle: () => startPuzzleFromMenu(),
+  onHardOptionsChange: (options) => {
+    const saved = saveHardOptions(options);
+    game.setHardOptions(saved);
+  },
 });
 
 document.addEventListener("keydown", (event) => {
