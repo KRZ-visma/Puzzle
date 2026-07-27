@@ -417,37 +417,57 @@ test.describe("Jigsaw playfield flows", () => {
     }).toBe(2);
   });
 
-  test("clear-area button moves board pieces outside while keeping groups", async ({ page }) => {
+  test("clear-area button moves unlocked board pieces outside while keeping groups", async ({ page }) => {
     await openGame(page, { pieces: 12 });
     await expect(page.getByTestId("clear-area")).toBeVisible();
     await expect(page.getByTestId("clear-area")).toHaveAttribute("aria-label", /clear puzzle area/i);
 
+    // Connect a free group, then park it on the silhouette without locking seats.
     await page.evaluate(() => {
       window.__PUZZLE__.connectNeighbors(0, "right");
-      window.__PUZZLE__.assemblePiece(0);
+      const state = window.__PUZZLE__.getState();
+      const { originX, originY } = state.layout;
+      const p0 = state.positions[0];
+      window.__PUZZLE__.tryMoveGroup(0, originX + 12 - p0.x, originY + 12 - p0.y);
     });
-
-    await expect.poll(async () => {
-      return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? 0);
-    }).toBeGreaterThan(0);
 
     const before = await page.evaluate(() => {
       const state = window.__PUZZLE__.getState();
       return {
         groups: state.groups,
+        placed: state.placed,
         offset: {
           x: state.positions[1].x - state.positions[0].x,
           y: state.positions[1].y - state.positions[0].y,
         },
+        overlapsBoard: (() => {
+          const { pieceW, pieceH, originX, originY } = state.layout;
+          const board = {
+            minX: originX,
+            minY: originY,
+            maxX: originX + state.cols * pieceW,
+            maxY: originY + state.rows * pieceH,
+          };
+          const body = {
+            minX: state.positions[0].x,
+            minY: state.positions[0].y,
+            maxX: state.positions[0].x + pieceW,
+            maxY: state.positions[0].y + pieceH,
+          };
+          return !(
+            body.maxX <= board.minX ||
+            body.minX >= board.maxX ||
+            body.maxY <= board.minY ||
+            body.minY >= board.maxY
+          );
+        })(),
       };
     });
     expect(before.groups).toBeLessThan(12);
+    expect(before.placed).toBe(0);
+    expect(before.overlapsBoard).toBe(true);
 
     await page.getByTestId("clear-area").click();
-
-    await expect.poll(async () => {
-      return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? -1);
-    }).toBe(0);
 
     const after = await page.evaluate(() => {
       const state = window.__PUZZLE__.getState();
@@ -463,7 +483,10 @@ test.describe("Jigsaw playfield flows", () => {
         maxY: originY + rows * pieceH,
       };
       let overlapsBoard = false;
-      for (const pos of state.positions) {
+      let clearedHasOnePieceGap = true;
+      const clearedIds = [0, 1];
+      for (let id = 0; id < state.positions.length; id += 1) {
+        const pos = state.positions[id];
         const body = {
           minX: pos.x,
           minY: pos.y,
@@ -477,19 +500,109 @@ test.describe("Jigsaw playfield flows", () => {
           body.minY >= board.maxY
         );
         if (hit) overlapsBoard = true;
+        if (clearedIds.includes(id)) {
+          const gapX = Math.max(0, Math.max(board.minX - body.maxX, body.minX - board.maxX));
+          const gapY = Math.max(0, Math.max(board.minY - body.maxY, body.minY - board.maxY));
+          // One-piece clearance on the primary axis (diagonal corner cases can have a small secondary gap).
+          if (!(gapX >= pieceW || gapY >= pieceH)) clearedHasOnePieceGap = false;
+        }
       }
       return {
         groups: state.groups,
+        placed: state.placed,
         offset: {
           x: state.positions[1].x - state.positions[0].x,
           y: state.positions[1].y - state.positions[0].y,
         },
         overlapsBoard,
+        clearedHasOnePieceGap,
       };
     });
 
     expect(after.groups).toBe(before.groups);
     expect(after.offset).toEqual(before.offset);
+    expect(after.placed).toBe(0);
     expect(after.overlapsBoard).toBe(false);
+    expect(after.clearedHasOnePieceGap).toBe(true);
+  });
+
+  test("clear-area button leaves board-locked pieces in place", async ({ page }) => {
+    await openGame(page, { pieces: 12 });
+
+    await page.evaluate(() => {
+      window.__PUZZLE__.assemblePiece(0);
+      window.__PUZZLE__.assemblePiece(1);
+      // Also park an unlocked piece on the silhouette so clear still has work to do.
+      const state = window.__PUZZLE__.getState();
+      const { originX, originY, pieceW, pieceH } = state.layout;
+      const p2 = state.positions[2];
+      window.__PUZZLE__.tryMoveGroup(
+        2,
+        originX + pieceW * 0.5 - p2.x,
+        originY + pieceH * 0.5 - p2.y
+      );
+    });
+
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? 0);
+    }).toBe(2);
+
+    const before = await page.evaluate(() => {
+      const state = window.__PUZZLE__.getState();
+      return {
+        placed: state.placed,
+        p0: { ...state.positions[0] },
+        p1: { ...state.positions[1] },
+        p2: { ...state.positions[2] },
+        locked0: window.__PUZZLE__.isPieceLocked(0),
+        locked1: window.__PUZZLE__.isPieceLocked(1),
+        locked2: window.__PUZZLE__.isPieceLocked(2),
+      };
+    });
+    expect(before.locked0).toBe(true);
+    expect(before.locked1).toBe(true);
+    expect(before.locked2).toBe(false);
+
+    await page.getByTestId("clear-area").click();
+
+    const after = await page.evaluate(() => {
+      const state = window.__PUZZLE__.getState();
+      const { pieceW, pieceH, originX, originY } = state.layout;
+      const board = {
+        minX: originX,
+        minY: originY,
+        maxX: originX + state.cols * pieceW,
+        maxY: originY + state.rows * pieceH,
+      };
+      const body2 = {
+        minX: state.positions[2].x,
+        minY: state.positions[2].y,
+        maxX: state.positions[2].x + pieceW,
+        maxY: state.positions[2].y + pieceH,
+      };
+      const piece2Overlaps = !(
+        body2.maxX <= board.minX ||
+        body2.minX >= board.maxX ||
+        body2.maxY <= board.minY ||
+        body2.minY >= board.maxY
+      );
+      return {
+        placed: state.placed,
+        p0: { ...state.positions[0] },
+        p1: { ...state.positions[1] },
+        p2: { ...state.positions[2] },
+        locked0: window.__PUZZLE__.isPieceLocked(0),
+        locked1: window.__PUZZLE__.isPieceLocked(1),
+        piece2Overlaps,
+      };
+    });
+
+    expect(after.placed).toBe(2);
+    expect(after.p0).toEqual(before.p0);
+    expect(after.p1).toEqual(before.p1);
+    expect(after.locked0).toBe(true);
+    expect(after.locked1).toBe(true);
+    expect(after.p2).not.toEqual(before.p2);
+    expect(after.piece2Overlaps).toBe(false);
   });
 });

@@ -1,11 +1,11 @@
 /**
  * Clear the board silhouette by translating overlapping groups into the gutters.
  * Pure helpers — keep relative piece offsets (groups stay connected).
+ * Board-locked groups (every member on its solved seat) are left in place.
  */
 
 import { translateGroup } from "./groups.js";
-
-const CLEAR_GAP = 4;
+import { isGroupOnBoard } from "./snap.js";
 
 /** Axis-aligned bounds of every piece body in a group. */
 export function groupBounds(memberIds, positions, pieceW, pieceH) {
@@ -49,37 +49,50 @@ function clamp(value, min, max) {
 }
 
 /**
- * Pick a translation that moves `bounds` fully outside the board rect.
+ * Pick a translation that moves `bounds` fully outside the board rect,
+ * leaving at least one piece of clearance from the board border.
  * Prefers a side that keeps the group on-canvas when possible; otherwise the
  * shortest clear move (pieces may leave the canvas for large groups).
  */
-export function translationOffBoard(bounds, board, cssW, cssH, rng = Math.random) {
+export function translationOffBoard(
+  bounds,
+  board,
+  cssW,
+  cssH,
+  rng = Math.random,
+  pieceW = 0,
+  pieceH = 0
+) {
   if (!rectsOverlap(bounds, board)) {
     return { dx: 0, dy: 0 };
   }
+
+  // One piece away from the silhouette on the move axis.
+  const gapX = Math.max(0, pieceW);
+  const gapY = Math.max(0, pieceH);
 
   const candidates = [
     {
       // Above the board
       dx: 0,
-      dy: board.minY - CLEAR_GAP - bounds.maxY,
+      dy: board.minY - gapY - bounds.maxY,
       axis: "x",
     },
     {
       // Below the board
       dx: 0,
-      dy: board.maxY + CLEAR_GAP - bounds.minY,
+      dy: board.maxY + gapY - bounds.minY,
       axis: "x",
     },
     {
       // Left of the board
-      dx: board.minX - CLEAR_GAP - bounds.maxX,
+      dx: board.minX - gapX - bounds.maxX,
       dy: 0,
       axis: "y",
     },
     {
       // Right of the board
-      dx: board.maxX + CLEAR_GAP - bounds.minX,
+      dx: board.maxX + gapX - bounds.minX,
       dy: 0,
       axis: "y",
     },
@@ -108,8 +121,8 @@ export function translationOffBoard(bounds, board, cssW, cssH, rng = Math.random
 }
 
 /**
- * Translate every group that overlaps the board silhouette into a gutter.
- * Returns how many groups were moved.
+ * Translate every unlocked group that overlaps the board silhouette into a gutter.
+ * Board-locked groups stay on their seats. Returns how many groups were moved.
  */
 export function clearPuzzleArea({
   groups,
@@ -142,11 +155,16 @@ export function clearPuzzleArea({
     if (seen.has(gid)) continue;
     seen.add(gid);
 
+    // Correctly seated groups are locked — do not clear them off the board.
+    if (isGroupOnBoard(groups, positions, id, cols, pieceW, pieceH, originX, originY)) {
+      continue;
+    }
+
     const members = groups.members.get(gid);
     const bounds = groupBounds(members, positions, pieceW, pieceH);
     if (!rectsOverlap(bounds, board)) continue;
 
-    const { dx, dy } = translationOffBoard(bounds, board, cssW, cssH, rng);
+    const { dx, dy } = translationOffBoard(bounds, board, cssW, cssH, rng, pieceW, pieceH);
     if (dx === 0 && dy === 0) continue;
     translateGroup(groups, positions, id, dx, dy);
     moved += 1;
