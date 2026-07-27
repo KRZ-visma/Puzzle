@@ -102,7 +102,49 @@ test.describe("Jigsaw playfield flows", () => {
     await expect.poll(async () => {
       return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? 0);
     }).toBe(1);
-    await expect(page.getByTestId("status")).toContainText(/Snapped to the board|Keep connecting|Drag pieces/i);
+    await expect(page.getByTestId("status")).toContainText(/Locked on the board|Keep connecting|Drag pieces/i);
+  });
+
+  test("pieces locked on the board cannot be moved", async ({ page }) => {
+    await openGame(page, { pieces: 12 });
+    await page.evaluate(() => window.__PUZZLE__.assemblePiece(0));
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.isPieceLocked?.(0) ?? false);
+    }).toBe(true);
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.locked ?? 0);
+    }).toBe(1);
+
+    const result = await page.evaluate(() => {
+      const before = window.__PUZZLE__.getState().positions[0];
+      const moved = window.__PUZZLE__.tryMoveGroup(0, 40, -30);
+      const after = window.__PUZZLE__.getState().positions[0];
+      return { moved, before, after };
+    });
+    expect(result.moved).toBe(false);
+    expect(result.after).toEqual(result.before);
+  });
+
+  test("connecting a free neighbor onto a locked piece keeps the board fixed", async ({ page }) => {
+    await openGame(page, { pieces: 12 });
+    await page.evaluate(() => {
+      window.__PUZZLE__.assemblePiece(0);
+      window.__PUZZLE__.assemblePiece(1);
+    });
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? 0);
+    }).toBe(2);
+    // Two separately locked neighbors merge in place into one board group.
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.groups ?? 0);
+    }).toBe(11);
+    await expect.poll(async () => {
+      return page.evaluate(
+        () => window.__PUZZLE__?.isPieceLocked?.(0) && window.__PUZZLE__?.isPieceLocked?.(1)
+      );
+    }).toBe(true);
+    const moved = await page.evaluate(() => window.__PUZZLE__.tryMoveGroup(0, 25, 25));
+    expect(moved).toBe(false);
   });
 
   test("connecting neighbors reduces group count", async ({ page }) => {
@@ -270,5 +312,81 @@ test.describe("Jigsaw playfield flows", () => {
     await expect.poll(async () => {
       return page.evaluate(() => window.__PUZZLE__?.getState()?.camera?.scale ?? 0);
     }).toBe(2);
+  });
+
+  test("clear-area button moves board pieces outside while keeping groups", async ({ page }) => {
+    await openGame(page, { pieces: 12 });
+    await expect(page.getByTestId("clear-area")).toBeVisible();
+    await expect(page.getByTestId("clear-area")).toHaveAttribute("aria-label", /clear puzzle area/i);
+
+    await page.evaluate(() => {
+      window.__PUZZLE__.connectNeighbors(0, "right");
+      window.__PUZZLE__.assemblePiece(0);
+    });
+
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? 0);
+    }).toBeGreaterThan(0);
+
+    const before = await page.evaluate(() => {
+      const state = window.__PUZZLE__.getState();
+      return {
+        groups: state.groups,
+        offset: {
+          x: state.positions[1].x - state.positions[0].x,
+          y: state.positions[1].y - state.positions[0].y,
+        },
+      };
+    });
+    expect(before.groups).toBeLessThan(12);
+
+    await page.getByTestId("clear-area").click();
+
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.placed ?? -1);
+    }).toBe(0);
+
+    const after = await page.evaluate(() => {
+      const state = window.__PUZZLE__.getState();
+      const { pieceW, pieceH, originX, originY, cols, rows } = {
+        ...state.layout,
+        cols: state.cols,
+        rows: state.rows,
+      };
+      const board = {
+        minX: originX,
+        minY: originY,
+        maxX: originX + cols * pieceW,
+        maxY: originY + rows * pieceH,
+      };
+      let overlapsBoard = false;
+      for (const pos of state.positions) {
+        const body = {
+          minX: pos.x,
+          minY: pos.y,
+          maxX: pos.x + pieceW,
+          maxY: pos.y + pieceH,
+        };
+        const hit = !(
+          body.maxX <= board.minX ||
+          body.minX >= board.maxX ||
+          body.maxY <= board.minY ||
+          body.minY >= board.maxY
+        );
+        if (hit) overlapsBoard = true;
+      }
+      return {
+        groups: state.groups,
+        offset: {
+          x: state.positions[1].x - state.positions[0].x,
+          y: state.positions[1].y - state.positions[0].y,
+        },
+        overlapsBoard,
+      };
+    });
+
+    expect(after.groups).toBe(before.groups);
+    expect(after.offset).toEqual(before.offset);
+    expect(after.overlapsBoard).toBe(false);
   });
 });

@@ -1,7 +1,8 @@
+import { clearPuzzleArea as moveGroupsOffBoard } from "./clearArea.js";
 import { DIFFICULTIES, DEFAULT_DIFFICULTY } from "./config.js";
 import { DEFAULT_IMAGE_ID, normalizeImageId } from "./gallery.js";
 import { els } from "./dom.js";
-import { createGroups, groupCount, mergeGroups } from "./groups.js";
+import { createGroups, groupCount, mergeGroups, translateGroup } from "./groups.js";
 import { createPlayfield } from "./playfield.js";
 import {
   buildProgress,
@@ -13,6 +14,7 @@ import {
 import { createRng } from "./rng.js";
 import {
   countPlacedPieces,
+  isGroupOnBoard,
   isPuzzleSolved,
   snapGroupToBoard,
   snapGroupToNeighbors,
@@ -113,6 +115,8 @@ export function createGame() {
       pieceW: layout.pieceW,
       pieceH: layout.pieceH,
       threshold: layout.threshold,
+      originX: layout.originX,
+      originY: layout.originY,
     });
 
     const boarded = snapGroupToBoard({
@@ -137,6 +141,8 @@ export function createGame() {
       pieceW: layout.pieceW,
       pieceH: layout.pieceH,
       threshold: layout.threshold,
+      originX: layout.originX,
+      originY: layout.originY,
     });
 
     playfield.redraw();
@@ -152,7 +158,7 @@ export function createGame() {
     if (neighborMerges + extraMerges > 0 || boarded) {
       setStatus(
         boarded
-          ? "Snapped to the board. Keep connecting pieces."
+          ? "Locked on the board. Keep connecting pieces."
           : "Pieces connected! Drag the group to keep building."
       );
     } else {
@@ -252,10 +258,68 @@ export function createGame() {
     // Canvas selection is transient during drag; nothing sticky to clear.
   }
 
+  /** Move every group off the board silhouette, keeping groups connected. */
+  function clearPuzzleArea() {
+    if (!active || !groups || !cols) return 0;
+    const layout = playfield.getLayout();
+    if (!(layout.pieceW > 0) || !(layout.pieceH > 0)) return 0;
+    const positions = playfield.getPositions();
+    const moved = moveGroupsOffBoard({
+      groups,
+      positions,
+      cols,
+      rows,
+      pieceW: layout.pieceW,
+      pieceH: layout.pieceH,
+      originX: layout.originX,
+      originY: layout.originY,
+      cssW: layout.cssW,
+      cssH: layout.cssH,
+    });
+    if (moved > 0) {
+      playfield.redraw();
+      refreshProgress();
+      persist();
+      setStatus("Cleared the puzzle area — groups stay together.");
+    }
+    return moved;
+  }
+
   /** Test/debug: assemble one piece onto the board and resolve snaps. */
   function assemblePiece(pieceId) {
     playfield.placePieceSolved(pieceId);
     afterDrop(pieceId);
+  }
+
+  /**
+   * Test helper: attempt to move a group. Returns false when the group is
+   * locked on the board (correct seats) and must stay put.
+   */
+  function tryMoveGroup(pieceId, dx, dy) {
+    if (!groups || !cols) return false;
+    const layout = playfield.getLayout();
+    const positions = playfield.getPositions();
+    if (
+      isGroupOnBoard(
+        groups,
+        positions,
+        pieceId,
+        cols,
+        layout.pieceW,
+        layout.pieceH,
+        layout.originX,
+        layout.originY
+      )
+    ) {
+      return false;
+    }
+    translateGroup(groups, positions, pieceId, dx, dy);
+    playfield.redraw();
+    return true;
+  }
+
+  function isPieceLocked(pieceId) {
+    return playfield.isPieceLocked(pieceId);
   }
 
   /** Test/debug: connect piece to a cardinal neighbor if both exist. */
@@ -347,6 +411,7 @@ export function createGame() {
     abandonProgress,
     persist,
     clearSelection,
+    clearPuzzleArea,
     setImage(img) {
       image = img;
       playfield.setImage(img);
@@ -363,10 +428,20 @@ export function createGame() {
     assemblePiece,
     connectNeighbors,
     solve,
+    tryMoveGroup,
+    isPieceLocked,
     getState: () => {
       const layout = playfield.getLayout();
       const positions = playfield.getPositions();
       const camera = playfield.getCamera();
+      const placed = countPlacedPieces(
+        positions,
+        cols,
+        layout.pieceW,
+        layout.pieceH,
+        layout.originX,
+        layout.originY
+      );
       return {
         cols,
         rows,
@@ -375,17 +450,19 @@ export function createGame() {
         imageId,
         active,
         groups: groups ? groupCount(groups) : 0,
-        placed: countPlacedPieces(
-          positions,
-          cols,
-          layout.pieceW,
-          layout.pieceH,
-          layout.originX,
-          layout.originY
-        ),
+        placed,
+        locked: placed,
         total: totalPieces(),
         threshold: layout.threshold,
         positions: positions.map((p) => ({ ...p })),
+        layout: {
+          pieceW: layout.pieceW,
+          pieceH: layout.pieceH,
+          originX: layout.originX,
+          originY: layout.originY,
+          cssW: layout.cssW,
+          cssH: layout.cssH,
+        },
         camera,
       };
     },

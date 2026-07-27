@@ -125,6 +125,9 @@ bindChrome({
     const saved = saveHardOptions(options);
     game.setHardOptions(saved);
   },
+  onClearArea: () => {
+    game.clearPuzzleArea();
+  },
   onZoomIn: () => {
     const camera = game.zoomIn();
     setZoomLabel(camera.scale);

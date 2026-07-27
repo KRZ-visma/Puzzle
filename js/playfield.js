@@ -21,6 +21,7 @@ import {
   piecePadding,
   solvedPosition,
 } from "./geometry.js";
+import { isPieceOnSeat } from "./snap.js";
 
 function createPath2D(commands) {
   const path = new Path2D();
@@ -212,12 +213,23 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
     const dragGid =
       dragging && groups ? groups.groupOf[dragging.pieceId] : null;
 
+    // Board-locked pieces stay under free pieces so hit-testing can skip them.
     for (const id of zOrder) {
+      if (isLocked(id)) drawPiece(id, false);
+    }
+    for (const id of zOrder) {
+      if (isLocked(id)) continue;
       const elevate = dragGid !== null && groups.groupOf[id] === dragGid;
       drawPiece(id, elevate);
     }
 
     ctx.restore();
+  }
+
+  /** Pieces on their solved board seat are locked and cannot be dragged. */
+  function isLocked(pieceId) {
+    if (!cols || !positions[pieceId]) return false;
+    return isPieceOnSeat(positions, pieceId, cols, pieceW, pieceH, originX, originY);
   }
 
   function scheduleDraw() {
@@ -240,6 +252,9 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
   function hitTest(worldX, worldY) {
     for (let i = zOrder.length - 1; i >= 0; i -= 1) {
       const id = zOrder[i];
+      // Skip locked pieces: they are not draggable, and skipping avoids
+      // expensive isPointInPath checks as more of the board fills in.
+      if (isLocked(id)) continue;
       const pos = positions[id];
       const localX = worldX - pos.x;
       const localY = worldY - pos.y;
@@ -528,6 +543,29 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
         positions[id].y += dy;
       }
       scheduleDraw();
+    },
+
+    /** True when the piece sits on its solved board seat (locked). */
+    isPieceLocked(pieceId) {
+      return isLocked(pieceId);
+    },
+
+    /**
+     * Test helper: translate a group by (dx, dy) unless it is board-locked.
+     * @returns {boolean} false when the group is locked and was not moved
+     */
+    tryMoveGroup(pieceId, dx, dy) {
+      if (!groups || isLocked(pieceId)) return false;
+      const members = groups.members.get(groups.groupOf[pieceId]);
+      for (const id of members) {
+        if (isLocked(id)) return false;
+      }
+      for (const id of members) {
+        positions[id].x += dx;
+        positions[id].y += dy;
+      }
+      scheduleDraw();
+      return true;
     },
 
     destroy() {

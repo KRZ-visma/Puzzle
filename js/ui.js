@@ -135,6 +135,7 @@ export function bindChrome({
   onPieceOptionSelect,
   onHardOptionsChange,
   onImageOptionSelect,
+  onClearArea,
   onZoomIn,
   onZoomOut,
   onZoomReset,
@@ -204,6 +205,7 @@ export function bindChrome({
 
   els.startBtn?.addEventListener("click", () => onStartPuzzle?.());
 
+  els.clearAreaBtn?.addEventListener("click", () => onClearArea?.());
   els.zoomInBtn?.addEventListener("click", () => onZoomIn?.());
   els.zoomOutBtn?.addEventListener("click", () => onZoomOut?.());
   els.zoomResetBtn?.addEventListener("click", () => onZoomReset?.());

@@ -27,6 +27,21 @@ export const PRECISE_SNAP_FRACTION = 0.15;
 /** Tab / blank size as a fraction of the smaller piece side. */
 export const TAB_FRACTION = 0.22;
 
+/**
+ * How much of an edge the connector occupies along the shared side
+ * (fraction of the piece side length).
+ */
+export const TAB_ALONG_FRACTION = 0.32;
+
+/**
+ * Allowed center of a connector along a shared edge, measured from the
+ * low end of that axis (left for horizontal edges, top for vertical).
+ * Values near 0.5 keep tabs centered; the seeded range spreads contact
+ * points toward either side so pieces are not all mid-edge knobs.
+ */
+export const TAB_CENTER_MIN = 0.28;
+export const TAB_CENTER_MAX = 0.72;
+
 /** Prefix for all localStorage keys used by this app. */
 export const STORAGE_PREFIX = "puzzle:";
 
