@@ -4,6 +4,7 @@ import {
   MAX_BASKETS,
   addBasket,
   createBasketState,
+  defaultBasketSize,
   hitTestBasket,
   nestlePiecesInBasket,
   putPiecesInBasket,
@@ -26,6 +27,8 @@ test("addBasket creates movable empty baskets up to the max", () => {
   const first = addBasket(state, layout);
   assert.ok(first);
   assert.equal(first.pieceIds.length, 0);
+  assert.ok(first.w >= 160);
+  assert.ok(first.h >= 160);
   assert.equal(state.baskets.length, 1);
   assert.equal(state.selectedId, first.id);
 
@@ -34,6 +37,28 @@ test("addBasket creates movable empty baskets up to the max", () => {
   }
   assert.equal(state.baskets.length, MAX_BASKETS);
   assert.equal(addBasket(state, layout), null);
+});
+
+test("defaultBasketSize is roomy relative to pieces and canvas", () => {
+  const size = defaultBasketSize(layout);
+  assert.ok(size.w >= layout.pieceW * 5);
+  assert.ok(size.h >= layout.pieceH * 5);
+  assert.ok(size.w <= layout.cssW * 0.48 + 0.5);
+  assert.ok(size.h <= layout.cssH * 0.48 + 0.5);
+});
+test("translateBasket can move across the board area with pieces", () => {
+  const state = createBasketState();
+  const basket = addBasket(state, { ...layout, originX: 160, originY: 80 });
+  basket.x = 20;
+  basket.y = 30;
+  putPiecesInBasket(state, basket.id, [0]);
+  const positions = [{ x: 25, y: 35 }, { x: 0, y: 0 }];
+  // Move well into the board silhouette region.
+  translateBasket(basket, positions, 200, 120, layout.cssW, layout.cssH);
+  assert.ok(basket.x > 150);
+  assert.ok(basket.y > 100);
+  assert.equal(positions[0].x, 25 + (basket.x - 20));
+  assert.equal(positions[0].y, 35 + (basket.y - 30));
 });
 
 test("removeBasket drops the selected basket and keeps pieces elsewhere", () => {

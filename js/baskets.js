@@ -23,18 +23,22 @@ export function createBasketState() {
 
 /**
  * Default basket size from current piece metrics.
+ * Roomy enough for a pile, and free to sit anywhere pieces can (including over the board).
  * @param {{ pieceW: number, pieceH: number, cssW: number, cssH: number }} layout
  */
 export function defaultBasketSize(layout) {
-  const w = clamp(layout.pieceW * 3.2, 96, Math.min(220, layout.cssW * 0.28));
-  const h = clamp(layout.pieceH * 3.2, 96, Math.min(220, layout.cssH * 0.28));
+  const targetW = Math.max(layout.pieceW * 5.5, layout.cssW * 0.24);
+  const targetH = Math.max(layout.pieceH * 5.5, layout.cssH * 0.24);
+  const w = clamp(targetW, 160, Math.min(440, layout.cssW * 0.48));
+  const h = clamp(targetH, 160, Math.min(440, layout.cssH * 0.48));
   return { w, h };
 }
 
 /**
- * Place a new basket in a free-ish spot (staggered by existing count).
+ * Place a new basket on the playfield (same space as pieces), staggered so
+ * multiple baskets do not fully overlap.
  * @param {{ baskets: Basket[], nextId: number, selectedId: number | null }} state
- * @param {{ pieceW: number, pieceH: number, cssW: number, cssH: number }} layout
+ * @param {{ pieceW: number, pieceH: number, cssW: number, cssH: number, originX?: number, originY?: number }} layout
  * @returns {Basket | null}
  */
 export function addBasket(state, layout) {
@@ -43,8 +47,11 @@ export function addBasket(state, layout) {
   const index = state.baskets.length;
   const col = index % 3;
   const row = Math.floor(index / 3);
-  const x = clamp(12 + col * (w * 0.45 + 16), 0, Math.max(0, layout.cssW - w));
-  const y = clamp(12 + row * (h * 0.35 + 16), 0, Math.max(0, layout.cssH - h));
+  // Seed near the board / piece area rather than a tiny corner pocket.
+  const baseX = Number.isFinite(layout.originX) ? layout.originX * 0.35 : layout.cssW * 0.08;
+  const baseY = Number.isFinite(layout.originY) ? layout.originY * 0.35 : layout.cssH * 0.08;
+  const x = clamp(baseX + col * (w * 0.28 + 20), 0, Math.max(0, layout.cssW - w));
+  const y = clamp(baseY + row * (h * 0.22 + 20), 0, Math.max(0, layout.cssH - h));
   const basket = {
     id: state.nextId,
     x,
@@ -89,12 +96,16 @@ export function hitTestBasket(baskets, x, y) {
 
 /**
  * Move a basket and every piece currently in it.
+ * Baskets share the full playfield with pieces (including over the board).
  * @param {Basket} basket
  * @param {{ x: number, y: number }[]} positions
  */
 export function translateBasket(basket, positions, dx, dy, cssW, cssH) {
-  const nextX = clamp(basket.x + dx, 0, Math.max(0, cssW - basket.w));
-  const nextY = clamp(basket.y + dy, 0, Math.max(0, cssH - basket.h));
+  // Keep a sliver on-canvas so the basket stays grabbable, but allow most of
+  // it to travel freely through the same space as puzzle pieces.
+  const minVisible = Math.min(48, basket.w * 0.35, basket.h * 0.35);
+  const nextX = clamp(basket.x + dx, minVisible - basket.w, Math.max(minVisible - basket.w, cssW - minVisible));
+  const nextY = clamp(basket.y + dy, minVisible - basket.h, Math.max(minVisible - basket.h, cssH - minVisible));
   const adx = nextX - basket.x;
   const ady = nextY - basket.y;
   if (adx === 0 && ady === 0) return { dx: 0, dy: 0 };

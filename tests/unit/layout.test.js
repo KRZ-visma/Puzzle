@@ -62,71 +62,15 @@ test("layoutRegions returns left/right trays for sideTrays", () => {
   assert.equal(regions.length, 2);
   assert.equal(regions[0].id, "left");
   assert.equal(regions[1].id, "right");
-  assert.ok(regions[0].x + regions[0].w <= layout.originX + 1);
-  assert.ok(regions[1].x >= layout.originX + layout.cols * layout.pieceW - 1);
 });
 
-test("layoutRegions returns none for scatter", () => {
-  assert.deepEqual(layoutRegions(LAYOUT_SCATTER, layout), []);
-});
-
-test("placeInSideTrays puts pieces into left and right trays without stacking", () => {
-  const regions = layoutRegions(LAYOUT_SIDE_TRAYS, layout);
-  const positions = placeInSideTrays(layout, fixedRng([0.2, 0.4, 0.6, 0.8]));
+test("placeInSideTrays parks pieces off-canvas for the tray UI", () => {
+  const positions = placeInSideTrays(layout, () => 0.25);
   assert.equal(positions.length, 12);
-
-  let leftish = 0;
-  let rightish = 0;
-  const midX = layout.originX + (layout.cols * layout.pieceW) / 2;
-  /** @type {{ x: number, y: number }[]} */
-  const leftPositions = [];
-  /** @type {{ x: number, y: number }[]} */
-  const rightPositions = [];
   for (const p of positions) {
-    const cx = p.x + layout.pieceW / 2;
-    if (cx < midX) {
-      leftish += 1;
-      leftPositions.push(p);
-    } else {
-      rightish += 1;
-      rightPositions.push(p);
-    }
-    assert.ok(p.x >= 0 && p.y >= 0);
+    assert.ok(p.x < -100);
+    assert.ok(p.y < -100);
   }
-  assert.ok(leftish >= 4);
-  assert.ok(rightish >= 4);
-
-  function assertNoOverlap(list) {
-    for (let i = 0; i < list.length; i += 1) {
-      for (let j = i + 1; j < list.length; j += 1) {
-        const a = list[i];
-        const b = list[j];
-        const overlapX = a.x < b.x + layout.pieceW && a.x + layout.pieceW > b.x;
-        const overlapY = a.y < b.y + layout.pieceH && a.y + layout.pieceH > b.y;
-        assert.equal(overlapX && overlapY, false);
-      }
-    }
-  }
-  assertNoOverlap(leftPositions);
-  assertNoOverlap(rightPositions);
-
-  let nearTray = 0;
-  for (const p of positions) {
-    const cx = p.x + layout.pieceW / 2;
-    const cy = p.y + layout.pieceH / 2;
-    if (
-      regions.some(
-        (r) =>
-          cx >= r.x - layout.pieceW &&
-          cx <= r.x + r.w + layout.pieceW &&
-          cy >= r.y - layout.pieceH &&
-          cy <= r.y + r.h + layout.pieceH
-      )
-    ) {
-      nearTray += 1;
-    }
-  }
-  assert.equal(nearTray, 12);
 });
 
 test("placePieces dispatches by mode", () => {

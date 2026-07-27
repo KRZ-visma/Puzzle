@@ -1,6 +1,7 @@
 /** Cached DOM references. Keep selectors here so markup renames stay localized. */
 
 export const els = {
+  playfieldPanel: document.getElementById("playfield-panel"),
   playfield: document.getElementById("playfield"),
   status: document.getElementById("status"),
   menuToggle: document.getElementById("menu-toggle"),
@@ -31,4 +32,10 @@ export const els = {
   zoomOutBtn: document.getElementById("zoom-out-btn"),
   zoomResetBtn: document.getElementById("zoom-reset-btn"),
   layoutOptions: document.getElementById("start-modal")?.querySelectorAll(".layout-option") ?? [],
+  sideTrayLeft: document.getElementById("side-tray-left"),
+  sideTrayRight: document.getElementById("side-tray-right"),
+  sideTrayLeftScroll: document.querySelector("#side-tray-left .side-tray-scroll"),
+  sideTrayRightScroll: document.querySelector("#side-tray-right .side-tray-scroll"),
+  sideTrayLeftCanvas: document.getElementById("side-tray-left-canvas"),
+  sideTrayRightCanvas: document.getElementById("side-tray-right-canvas"),
 };

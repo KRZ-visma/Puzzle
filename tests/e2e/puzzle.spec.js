@@ -38,55 +38,48 @@ test.describe("Jigsaw playfield flows", () => {
     await expect(page.getByTestId("status")).toHaveText("");
   });
 
-  test("starts with side trays so pieces sit left and right of the board", async ({ page }) => {
-    await openGame(page, { pieces: 12, layout: "sideTrays" });
+  test("starts with side trays that stay visible, scroll, and space pieces evenly", async ({ page }) => {
+    await openGame(page, { pieces: 48, layout: "sideTrays" });
+    await expect(page.getByTestId("side-tray-left")).toBeVisible();
+    await expect(page.getByTestId("side-tray-right")).toBeVisible();
+
     const summary = await page.evaluate(() => {
       const state = window.__PUZZLE__.getState();
-      const { positions, layout } = state;
-      const midX = layout.originX + (state.cols * layout.pieceW) / 2;
-      let left = 0;
-      let right = 0;
-      const leftPositions = [];
-      const rightPositions = [];
-      for (const p of positions) {
-        if (p.x + layout.pieceW / 2 < midX) {
-          left += 1;
-          leftPositions.push(p);
-        } else {
-          right += 1;
-          rightPositions.push(p);
-        }
-      }
-      function hasOverlap(list) {
-        for (let i = 0; i < list.length; i += 1) {
-          for (let j = i + 1; j < list.length; j += 1) {
-            const a = list[i];
-            const b = list[j];
-            if (
-              a.x < b.x + layout.pieceW &&
-              a.x + layout.pieceW > b.x &&
-              a.y < b.y + layout.pieceH &&
-              a.y + layout.pieceH > b.y
-            ) {
-              return true;
-            }
-          }
-        }
-        return false;
-      }
+      const trays = state.sideTrays;
+      const left = document.querySelector("[data-testid='side-tray-left']");
+      const leftScroll = document.querySelector("[data-testid='side-tray-left-scroll']");
+      const leftCanvas = document.querySelector("[data-testid='side-tray-left-canvas']");
       return {
-        left,
-        right,
-        layoutMode: layout.layoutMode,
+        enabled: trays.enabled,
+        leftCount: trays.leftIds.length,
+        rightCount: trays.rightIds.length,
+        gap: trays.gap,
+        pieceH: trays.pieceH,
+        scrollOverflow: leftScroll ? getComputedStyle(leftScroll).overflowY : "",
+        canvasTallerThanTray:
+          leftCanvas && left
+            ? leftCanvas.getBoundingClientRect().height > left.getBoundingClientRect().height + 1
+            : false,
+        layoutMode: state.layout.layoutMode,
         placed: state.placed,
-        overlaps: hasOverlap(leftPositions) || hasOverlap(rightPositions),
       };
     });
+
     expect(summary.layoutMode).toBe("sideTrays");
+    expect(summary.enabled).toBe(true);
     expect(summary.placed).toBe(0);
-    expect(summary.left).toBeGreaterThanOrEqual(4);
-    expect(summary.right).toBeGreaterThanOrEqual(4);
-    expect(summary.overlaps).toBe(false);
+    expect(summary.leftCount).toBeGreaterThanOrEqual(20);
+    expect(summary.rightCount).toBeGreaterThanOrEqual(20);
+    expect(summary.leftCount + summary.rightCount).toBe(48);
+    expect(summary.gap).toBeGreaterThan(0);
+    expect(summary.scrollOverflow).toMatch(/auto|scroll/);
+    expect(summary.canvasTallerThanTray).toBe(true);
+  });
+
+  test("side trays stay hidden for scatter layout", async ({ page }) => {
+    await openGame(page, { pieces: 12, layout: "scatter" });
+    await expect(page.getByTestId("side-tray-left")).toBeHidden();
+    await expect(page.getByTestId("side-tray-right")).toBeHidden();
   });
 
   test("basket controls start empty and can add, move, and remove baskets", async ({ page }) => {
@@ -103,6 +96,12 @@ test.describe("Jigsaw playfield flows", () => {
     await expect.poll(async () => {
       return page.evaluate(() => window.__PUZZLE__?.getState()?.baskets?.baskets?.length ?? 0);
     }).toBe(1);
+    await expect.poll(async () => {
+      return page.evaluate(() => {
+        const basket = window.__PUZZLE__?.getState()?.baskets?.baskets?.[0];
+        return basket ? Math.min(basket.w, basket.h) : 0;
+      });
+    }).toBeGreaterThanOrEqual(160);
 
     const moved = await page.evaluate(() => {
       const state = window.__PUZZLE__.getState();
