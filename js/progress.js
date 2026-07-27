@@ -1,5 +1,6 @@
 import { DIFFICULTIES } from "./config.js";
 import { normalizeImageId } from "./gallery.js";
+import { DEFAULT_LAYOUT_MODE, normalizeLayoutMode } from "./layout.js";
 import { loadJson, remove, saveJson } from "./storage.js";
 
 /** localStorage key for in-progress puzzle layout. */
@@ -78,6 +79,7 @@ export function normalizeProgress(raw) {
   if (!Number.isFinite(seed)) return null;
 
   const imageId = normalizeImageId(version === 1 ? undefined : data.imageId);
+  const layoutMode = normalizeLayoutMode(data.layoutMode);
 
   const total = cols * rows;
   const positions = data.positions;
@@ -100,6 +102,7 @@ export function normalizeProgress(raw) {
     version: PROGRESS_VERSION,
     difficulty,
     imageId,
+    layoutMode,
     cols,
     rows,
     seed: seed >>> 0 || 1,
@@ -136,12 +139,13 @@ export function clearProgress() {
  * @param {{
  *   difficulty: number,
  *   imageId: string,
+ *   layoutMode?: string,
  *   cols: number,
  *   rows: number,
  *   seed: number,
  *   positions: { x: number, y: number }[],
  *   groupOf: number[],
- *   layout: { originX: number, originY: number, pieceW: number, pieceH: number },
+ *   layout: { originX: number, originY: number, pieceW: number, pieceH: number, layoutMode?: string },
  * }} state
  */
 export function buildProgress(state) {
@@ -149,6 +153,7 @@ export function buildProgress(state) {
     version: PROGRESS_VERSION,
     difficulty: state.difficulty,
     imageId: state.imageId,
+    layoutMode: state.layoutMode ?? state.layout?.layoutMode ?? DEFAULT_LAYOUT_MODE,
     cols: state.cols,
     rows: state.rows,
     seed: state.seed,

@@ -1,5 +1,6 @@
 import { DEFAULT_DIFFICULTY, DIFFICULTIES } from "./config.js";
 import { DEFAULT_IMAGE_ID, normalizeImageId } from "./gallery.js";
+import { DEFAULT_LAYOUT_MODE, normalizeLayoutMode } from "./layout.js";
 import { loadJson, saveJson } from "./storage.js";
 
 /** localStorage key for the player's preferred piece count. */
@@ -10,6 +11,9 @@ const HARD_OPTIONS_PREF = "hardOptions";
 
 /** localStorage key for the player's preferred gallery image. */
 const IMAGE_PREF = "imageId";
+
+/** localStorage key for initial piece layout (scatter / trays). */
+const LAYOUT_PREF = "layoutMode";
 
 /** Default hard-mode toggles (all off = easier). */
 export const DEFAULT_HARD_OPTIONS = Object.freeze({
@@ -90,3 +94,21 @@ export function saveImagePreference(value) {
   saveJson(IMAGE_PREF, id);
   return id;
 }
+
+/** Read the last chosen piece layout mode. */
+export function loadLayoutPreference() {
+  return normalizeLayoutMode(loadJson(LAYOUT_PREF, DEFAULT_LAYOUT_MODE));
+}
+
+/**
+ * Persist the piece layout preference.
+ * @param {unknown} value
+ * @returns {string} normalized layout mode that was saved
+ */
+export function saveLayoutPreference(value) {
+  const mode = normalizeLayoutMode(value);
+  saveJson(LAYOUT_PREF, mode);
+  return mode;
+}
+
+export { normalizeLayoutMode, DEFAULT_LAYOUT_MODE };

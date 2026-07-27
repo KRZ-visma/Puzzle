@@ -23,8 +23,12 @@ export const els = {
   updateBanner: document.getElementById("update-banner"),
   reloadUpdate: document.getElementById("reload-update"),
   clearAreaBtn: document.getElementById("clear-area-btn"),
+  basketControls: document.getElementById("basket-controls"),
+  addBasketBtn: document.getElementById("add-basket-btn"),
+  removeBasketBtn: document.getElementById("remove-basket-btn"),
   zoomControls: document.getElementById("zoom-controls"),
   zoomInBtn: document.getElementById("zoom-in-btn"),
   zoomOutBtn: document.getElementById("zoom-out-btn"),
   zoomResetBtn: document.getElementById("zoom-reset-btn"),
+  layoutOptions: document.getElementById("start-modal")?.querySelectorAll(".layout-option") ?? [],
 };

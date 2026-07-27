@@ -1,13 +1,21 @@
 import { DEFAULT_DIFFICULTY } from "./config.js";
 import { DEFAULT_IMAGE_ID, getGalleryImage, normalizeImageId } from "./gallery.js";
 import { els } from "./dom.js";
-import { DEFAULT_HARD_OPTIONS, normalizeDifficulty, normalizeHardOptions } from "./settings.js";
+import { MAX_BASKETS } from "./baskets.js";
+import {
+  DEFAULT_HARD_OPTIONS,
+  DEFAULT_LAYOUT_MODE,
+  normalizeDifficulty,
+  normalizeHardOptions,
+  normalizeLayoutMode,
+} from "./settings.js";
 
 /** Status text, menu, and modal chrome. */
 
 let selectedDifficulty = DEFAULT_DIFFICULTY;
 let hardOptions = { ...DEFAULT_HARD_OPTIONS };
 let selectedImageId = DEFAULT_IMAGE_ID;
+let selectedLayoutMode = DEFAULT_LAYOUT_MODE;
 
 function setToggleControl(button, on) {
   if (!button) return;
@@ -116,6 +124,22 @@ export function getSelectedImageId() {
   return normalizeImageId(selectedImageId);
 }
 
+/** Sync start-menu piece layout selection. */
+export function setLayoutControls(value) {
+  const mode = normalizeLayoutMode(value);
+  selectedLayoutMode = mode;
+  for (const btn of els.layoutOptions) {
+    const selected = btn.dataset.layout === mode;
+    btn.setAttribute("aria-pressed", selected ? "true" : "false");
+    btn.classList.toggle("is-selected", selected);
+  }
+  return mode;
+}
+
+export function getSelectedLayoutMode() {
+  return normalizeLayoutMode(selectedLayoutMode);
+}
+
 /** Update the preview modal image source. */
 export function setPreviewImage(src) {
   if (!els.previewImage || !src) return;
@@ -128,6 +152,18 @@ export function setZoomLabel(scale) {
   els.zoomResetBtn.textContent = `${pct}%`;
 }
 
+/** Enable/disable remove-basket based on current basket count. */
+export function setBasketControls(count) {
+  const n = Math.max(0, Number(count) || 0);
+  if (els.removeBasketBtn) {
+    els.removeBasketBtn.disabled = n <= 0;
+  }
+  if (els.addBasketBtn) {
+    els.addBasketBtn.disabled = n >= MAX_BASKETS;
+  }
+  return n;
+}
+
 export function bindChrome({
   onRestart,
   onPlayAgain,
@@ -135,7 +171,10 @@ export function bindChrome({
   onPieceOptionSelect,
   onHardOptionsChange,
   onImageOptionSelect,
+  onLayoutOptionSelect,
   onClearArea,
+  onAddBasket,
+  onRemoveBasket,
   onZoomIn,
   onZoomOut,
   onZoomReset,
@@ -203,9 +242,19 @@ export function bindChrome({
     });
   }
 
+  for (const btn of els.layoutOptions) {
+    btn.addEventListener("click", () => {
+      const mode = normalizeLayoutMode(btn.dataset.layout);
+      setLayoutControls(mode);
+      onLayoutOptionSelect?.(mode);
+    });
+  }
+
   els.startBtn?.addEventListener("click", () => onStartPuzzle?.());
 
   els.clearAreaBtn?.addEventListener("click", () => onClearArea?.());
+  els.addBasketBtn?.addEventListener("click", () => onAddBasket?.());
+  els.removeBasketBtn?.addEventListener("click", () => onRemoveBasket?.());
   els.zoomInBtn?.addEventListener("click", () => onZoomIn?.());
   els.zoomOutBtn?.addEventListener("click", () => onZoomOut?.());
   els.zoomResetBtn?.addEventListener("click", () => onZoomReset?.());

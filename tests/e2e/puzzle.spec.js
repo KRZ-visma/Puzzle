@@ -1,12 +1,15 @@
 import { expect, test } from "@playwright/test";
 
-async function openGame(page, { pieces = 12, imageId } = {}) {
+async function openGame(page, { pieces = 12, imageId, layout } = {}) {
   await page.goto(`/?e2e=1`);
   await expect(page.getByTestId("start-modal")).toBeVisible();
   if (imageId) {
     await page.getByTestId(`gallery-option-${imageId}`).click();
   }
   await page.getByTestId(`piece-option-${pieces}`).click();
+  if (layout) {
+    await page.getByTestId(`layout-option-${layout}`).click();
+  }
   await page.getByTestId("start-puzzle").click();
   await expect(page.getByTestId("start-modal")).toBeHidden();
   await expect.poll(async () => {
@@ -25,10 +28,110 @@ test.describe("Jigsaw playfield flows", () => {
     await expect(page.getByTestId("gallery-options")).toBeVisible();
     await expect(page.getByTestId("gallery-option-woods")).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByTestId("piece-options")).toBeVisible();
+    await expect(page.getByTestId("layout-options")).toBeVisible();
+    await expect(page.getByTestId("layout-option-scatter")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("layout-option-sideTrays")).toBeVisible();
+    await expect(page.getByTestId("layout-option-baskets")).toHaveCount(0);
     await expect(page.getByTestId("start-puzzle")).toBeVisible();
     await expect(page.getByTestId("start-lead")).toContainText(/Pick an image/i);
     await expect(page.getByTestId("start-lead")).toContainText(/connect tabs/i);
     await expect(page.getByTestId("status")).toHaveText("");
+  });
+
+  test("starts with side trays so pieces sit left and right of the board", async ({ page }) => {
+    await openGame(page, { pieces: 12, layout: "sideTrays" });
+    const summary = await page.evaluate(() => {
+      const state = window.__PUZZLE__.getState();
+      const { positions, layout } = state;
+      const midX = layout.originX + (state.cols * layout.pieceW) / 2;
+      let left = 0;
+      let right = 0;
+      const leftPositions = [];
+      const rightPositions = [];
+      for (const p of positions) {
+        if (p.x + layout.pieceW / 2 < midX) {
+          left += 1;
+          leftPositions.push(p);
+        } else {
+          right += 1;
+          rightPositions.push(p);
+        }
+      }
+      function hasOverlap(list) {
+        for (let i = 0; i < list.length; i += 1) {
+          for (let j = i + 1; j < list.length; j += 1) {
+            const a = list[i];
+            const b = list[j];
+            if (
+              a.x < b.x + layout.pieceW &&
+              a.x + layout.pieceW > b.x &&
+              a.y < b.y + layout.pieceH &&
+              a.y + layout.pieceH > b.y
+            ) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+      return {
+        left,
+        right,
+        layoutMode: layout.layoutMode,
+        placed: state.placed,
+        overlaps: hasOverlap(leftPositions) || hasOverlap(rightPositions),
+      };
+    });
+    expect(summary.layoutMode).toBe("sideTrays");
+    expect(summary.placed).toBe(0);
+    expect(summary.left).toBeGreaterThanOrEqual(4);
+    expect(summary.right).toBeGreaterThanOrEqual(4);
+    expect(summary.overlaps).toBe(false);
+  });
+
+  test("basket controls start empty and can add, move, and remove baskets", async ({ page }) => {
+    await openGame(page, { pieces: 12 });
+    await expect(page.getByTestId("basket-controls")).toBeVisible();
+    await expect(page.getByTestId("add-basket")).toBeVisible();
+    await expect(page.getByTestId("remove-basket")).toBeDisabled();
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.baskets?.baskets?.length ?? -1);
+    }).toBe(0);
+
+    await page.getByTestId("add-basket").click();
+    await expect(page.getByTestId("remove-basket")).toBeEnabled();
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.baskets?.baskets?.length ?? 0);
+    }).toBe(1);
+
+    const moved = await page.evaluate(() => {
+      const state = window.__PUZZLE__.getState();
+      const basket = state.baskets.baskets[0];
+      window.__PUZZLE__.putPieceInBasket(0, basket.id);
+      const before = window.__PUZZLE__.getState();
+      const pieceBefore = before.positions[0];
+      const basketBefore = before.baskets.baskets[0];
+      window.__PUZZLE__.tryMoveBasket(basket.id, 30, 20);
+      const after = window.__PUZZLE__.getState();
+      return {
+        pieceDx: after.positions[0].x - pieceBefore.x,
+        pieceDy: after.positions[0].y - pieceBefore.y,
+        basketDx: after.baskets.baskets[0].x - basketBefore.x,
+        basketDy: after.baskets.baskets[0].y - basketBefore.y,
+        pieceIds: after.baskets.baskets[0].pieceIds,
+      };
+    });
+    expect(moved.pieceIds).toContain(0);
+    expect(moved.pieceDx).toBeCloseTo(moved.basketDx, 5);
+    expect(moved.pieceDy).toBeCloseTo(moved.basketDy, 5);
+    expect(moved.basketDx).toBeCloseTo(30, 5);
+    expect(moved.basketDy).toBeCloseTo(20, 5);
+
+    await page.getByTestId("remove-basket").click();
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.baskets?.baskets?.length ?? -1);
+    }).toBe(0);
+    await expect(page.getByTestId("remove-basket")).toBeDisabled();
   });
 
   test("starts a puzzle with the selected gallery image", async ({ page }) => {
