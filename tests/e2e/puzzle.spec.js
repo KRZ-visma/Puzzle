@@ -49,6 +49,7 @@ test.describe("Jigsaw playfield flows", () => {
       const left = document.querySelector("[data-testid='side-tray-left']");
       const leftScroll = document.querySelector("[data-testid='side-tray-left-scroll']");
       const leftCanvas = document.querySelector("[data-testid='side-tray-left-canvas']");
+      const playfield = document.querySelector("[data-testid='playfield']");
       return {
         enabled: trays.enabled,
         leftCount: trays.leftIds.length,
@@ -62,6 +63,9 @@ test.describe("Jigsaw playfield flows", () => {
             : false,
         layoutMode: state.layout.layoutMode,
         placed: state.placed,
+        playfieldWidth: playfield?.getBoundingClientRect().width ?? 0,
+        clientWidth: document.documentElement.clientWidth,
+        trayPosition: left ? getComputedStyle(left).position : "",
       };
     });
 
@@ -74,6 +78,33 @@ test.describe("Jigsaw playfield flows", () => {
     expect(summary.gap).toBeGreaterThan(0);
     expect(summary.scrollOverflow).toMatch(/auto|scroll/);
     expect(summary.canvasTallerThanTray).toBe(true);
+    // Overlay trays must not shrink the playfield away from full width.
+    expect(summary.trayPosition).toBe("absolute");
+    expect(summary.playfieldWidth).toBeGreaterThanOrEqual(summary.clientWidth - 2);
+  });
+
+  test("side trays stay on screen while the playfield camera zooms", async ({ page }) => {
+    await openGame(page, { pieces: 12, layout: "sideTrays" });
+    await expect(page.getByTestId("side-tray-left")).toBeVisible();
+    await page.getByTestId("zoom-in").click();
+    await page.getByTestId("zoom-in").click();
+    await expect.poll(async () => {
+      return page.evaluate(() => window.__PUZZLE__?.getState()?.camera?.scale ?? 0);
+    }).toBeGreaterThan(1);
+    await expect(page.getByTestId("side-tray-left")).toBeVisible();
+    await expect(page.getByTestId("side-tray-right")).toBeVisible();
+    const overlay = await page.evaluate(() => {
+      const left = document.querySelector("[data-testid='side-tray-left']")?.getBoundingClientRect();
+      const play = document.querySelector("[data-testid='playfield']")?.getBoundingClientRect();
+      return {
+        leftVisible: Boolean(left && left.width > 0 && left.height > 0),
+        leftAtEdge: left ? left.left <= 1 : false,
+        playFullWidth: play ? play.width >= document.documentElement.clientWidth - 2 : false,
+      };
+    });
+    expect(overlay.leftVisible).toBe(true);
+    expect(overlay.leftAtEdge).toBe(true);
+    expect(overlay.playFullWidth).toBe(true);
   });
 
   test("side trays stay hidden for scatter layout", async ({ page }) => {

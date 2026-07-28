@@ -91,6 +91,8 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
   let basketState = createBasketState();
   /** @type {Set<number>} */
   let trayPieceIds = new Set();
+  /** Horizontal inset reserved so the board sits between overlay side trays. */
+  let sideTrayInset = 0;
 
   function emitBasketsChange() {
     onBasketsChange?.(snapshotBaskets(basketState));
@@ -127,8 +129,8 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
   }
 
   function boardSize() {
-    // Side trays live in DOM panels; board uses the normal centered silhouette.
-    const marginX = cssW * 0.08;
+    // Full-bleed canvas; when overlay trays are open, keep the silhouette between them.
+    const marginX = Math.max(cssW * 0.08, sideTrayInset);
     const marginY = cssH * 0.1;
     const maxBoardW = cssW - marginX * 2;
     const maxBoardH = cssH - marginY * 2;
@@ -144,6 +146,38 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
     pad = piecePadding(pieceW, pieceH);
     originX = (cssW - boardW) / 2;
     originY = (cssH - boardH) / 2;
+  }
+
+  function reflowBoardKeepingSeats() {
+    if (!cols || !(pieceW > 0)) {
+      boardSize();
+      return;
+    }
+    const prevW = pieceW;
+    const prevH = pieceH;
+    const prevOriginX = originX;
+    const prevOriginY = originY;
+    boardSize();
+    if (positions.length && prevW > 0) {
+      const sx = pieceW / prevW;
+      const sy = pieceH / prevH;
+      for (const pos of positions) {
+        const relX = (pos.x - prevOriginX) * sx;
+        const relY = (pos.y - prevOriginY) * sy;
+        pos.x = originX + relX;
+        pos.y = originY + relY;
+      }
+      for (const basket of basketState.baskets) {
+        const relX = (basket.x - prevOriginX) * sx;
+        const relY = (basket.y - prevOriginY) * sy;
+        basket.x = originX + relX;
+        basket.y = originY + relY;
+        basket.w *= sx;
+        basket.h *= sy;
+      }
+      buildPaths();
+    }
+    scheduleDraw();
   }
 
   function buildPaths() {
@@ -658,6 +692,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
       activePointers.clear();
       basketState = createBasketState();
       trayPieceIds = new Set();
+      sideTrayInset = 0;
       emitBasketsChange();
       resize();
       boardSize();
@@ -670,6 +705,18 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
       }
       zOrder = Array.from({ length: total }, (_, i) => i);
       setCameraState(resetCamera());
+    },
+
+    /**
+     * Reserve horizontal space for overlay side trays (board stays between them).
+     * Canvas itself stays full-bleed so zoom/pan still use the whole screen.
+     * @param {number} insetPx
+     */
+    setSideTrayInset(insetPx) {
+      const next = Math.max(0, Number(insetPx) || 0);
+      if (Math.abs(next - sideTrayInset) < 0.5) return;
+      sideTrayInset = next;
+      reflowBoardKeepingSeats();
     },
 
     setTrayPieceIds(ids) {

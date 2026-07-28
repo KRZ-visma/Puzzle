@@ -92,6 +92,7 @@ export function createGame() {
     if (layout.layoutMode !== LAYOUT_SIDE_TRAYS) {
       sideTrays.clear();
       playfield.setTrayPieceIds([]);
+      playfield.setSideTrayInset(0);
       return;
     }
     const assigned = assignSideTrayIds(cols * rows, rng);
@@ -107,6 +108,15 @@ export function createGame() {
       rightIds: assigned.rightIds,
     });
     playfield.setTrayPieceIds(sideTrays.getTrayPieceIds());
+    // Reflow board between overlay trays; then re-sync tray piece art to new size.
+    playfield.setSideTrayInset(sideTrays.getOverlayWidth() + 10);
+    const next = playfield.getLayout();
+    sideTrays.syncMetrics({
+      pieceW: next.pieceW,
+      pieceH: next.pieceH,
+      edgeMap: playfield.getEdgeMap(),
+      image,
+    });
   }
 
   function restoreSideTraysFromPositions() {
@@ -114,6 +124,7 @@ export function createGame() {
     if (layout.layoutMode !== LAYOUT_SIDE_TRAYS) {
       sideTrays.clear();
       playfield.setTrayPieceIds([]);
+      playfield.setSideTrayInset(0);
       return;
     }
     const positions = playfield.getPositions();
@@ -134,6 +145,14 @@ export function createGame() {
       rightIds: parked.slice(mid),
     });
     playfield.setTrayPieceIds(sideTrays.getTrayPieceIds());
+    playfield.setSideTrayInset(sideTrays.getOverlayWidth() + 10);
+    const next = playfield.getLayout();
+    sideTrays.syncMetrics({
+      pieceW: next.pieceW,
+      pieceH: next.pieceH,
+      edgeMap: playfield.getEdgeMap(),
+      image,
+    });
   }
 
   function totalPieces() {
@@ -331,6 +350,7 @@ export function createGame() {
   function abandonProgress() {
     active = false;
     sideTrays.clear();
+    playfield.setSideTrayInset(0);
     clearProgress();
   }
 
