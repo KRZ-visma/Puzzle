@@ -82,6 +82,14 @@ export function createSideTrayUi(opts) {
     }
   }
 
+  /** Measured overlay tray width (px) for board inset + chrome offsets. */
+  function getOverlayWidth() {
+    if (!enabled) return 0;
+    const leftW = leftTray.getBoundingClientRect().width;
+    const rightW = rightTray.getBoundingClientRect().width;
+    return Math.max(leftW, rightW, 0);
+  }
+
   function isEnabled() {
     return enabled;
   }
@@ -293,6 +301,7 @@ export function createSideTrayUi(opts) {
     redraw,
     removePiece,
     getTrayPieceIds,
+    getOverlayWidth,
     getState,
     syncMetrics,
     destroy() {
