@@ -29,8 +29,8 @@ test.describe("Jigsaw playfield flows", () => {
     await expect(page.getByTestId("gallery-option-woods")).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByTestId("piece-options")).toBeVisible();
     await expect(page.getByTestId("layout-options")).toBeVisible();
-    await expect(page.getByTestId("layout-option-scatter")).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByTestId("layout-option-sideTrays")).toBeVisible();
+    await expect(page.getByTestId("layout-option-sideTrays")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("layout-option-scatter")).toBeVisible();
     await expect(page.getByTestId("layout-option-baskets")).toHaveCount(0);
     await expect(page.getByTestId("start-puzzle")).toBeVisible();
     await expect(page.getByTestId("start-lead")).toContainText(/Pick an image/i);
@@ -499,10 +499,17 @@ test.describe("Jigsaw playfield flows", () => {
     }).toBe(2);
   });
 
-  test("clear-area button moves unlocked board pieces outside while keeping groups", async ({ page }) => {
-    await openGame(page, { pieces: 12 });
+  test("clear-area button returns unlocked board pieces to side trays", async ({ page }) => {
+    await openGame(page, { pieces: 12, layout: "sideTrays" });
     await expect(page.getByTestId("clear-area")).toBeVisible();
-    await expect(page.getByTestId("clear-area")).toHaveAttribute("aria-label", /clear puzzle area/i);
+    await expect(page.getByTestId("clear-area")).toHaveAttribute("aria-label", /return pieces to trays/i);
+
+    await expect.poll(async () => {
+      return page.evaluate(() => {
+        const trays = window.__PUZZLE__.getState().sideTrays;
+        return trays.leftIds.length + trays.rightIds.length;
+      });
+    }).toBe(12);
 
     // Connect a free group, then park it on the silhouette without locking seats.
     await page.evaluate(() => {
@@ -515,13 +522,13 @@ test.describe("Jigsaw playfield flows", () => {
 
     const before = await page.evaluate(() => {
       const state = window.__PUZZLE__.getState();
+      const trays = state.sideTrays;
       return {
         groups: state.groups,
         placed: state.placed,
-        offset: {
-          x: state.positions[1].x - state.positions[0].x,
-          y: state.positions[1].y - state.positions[0].y,
-        },
+        trayCount: trays.leftIds.length + trays.rightIds.length,
+        inTray0: trays.leftIds.includes(0) || trays.rightIds.includes(0),
+        inTray1: trays.leftIds.includes(1) || trays.rightIds.includes(1),
         overlapsBoard: (() => {
           const { pieceW, pieceH, originX, originY } = state.layout;
           const board = {
@@ -548,68 +555,85 @@ test.describe("Jigsaw playfield flows", () => {
     expect(before.groups).toBeLessThan(12);
     expect(before.placed).toBe(0);
     expect(before.overlapsBoard).toBe(true);
+    expect(before.inTray0).toBe(false);
+    expect(before.inTray1).toBe(false);
+    expect(before.trayCount).toBe(10);
 
     await page.getByTestId("clear-area").click();
 
     const after = await page.evaluate(() => {
       const state = window.__PUZZLE__.getState();
-      const { pieceW, pieceH, originX, originY, cols, rows } = {
-        ...state.layout,
-        cols: state.cols,
-        rows: state.rows,
-      };
-      const board = {
-        minX: originX,
-        minY: originY,
-        maxX: originX + cols * pieceW,
-        maxY: originY + rows * pieceH,
-      };
-      let overlapsBoard = false;
-      let clearedHasOnePieceGap = true;
-      const clearedIds = [0, 1];
-      for (let id = 0; id < state.positions.length; id += 1) {
-        const pos = state.positions[id];
-        const body = {
-          minX: pos.x,
-          minY: pos.y,
-          maxX: pos.x + pieceW,
-          maxY: pos.y + pieceH,
-        };
-        const hit = !(
-          body.maxX <= board.minX ||
-          body.minX >= board.maxX ||
-          body.maxY <= board.minY ||
-          body.minY >= board.maxY
-        );
-        if (hit) overlapsBoard = true;
-        if (clearedIds.includes(id)) {
-          const gapX = Math.max(0, Math.max(board.minX - body.maxX, body.minX - board.maxX));
-          const gapY = Math.max(0, Math.max(board.minY - body.maxY, body.minY - board.maxY));
-          // One-piece clearance on the primary axis (diagonal corner cases can have a small secondary gap).
-          if (!(gapX >= pieceW || gapY >= pieceH)) clearedHasOnePieceGap = false;
-        }
-      }
+      const trays = state.sideTrays;
       return {
         groups: state.groups,
         placed: state.placed,
+        trayCount: trays.leftIds.length + trays.rightIds.length,
+        inTray0: trays.leftIds.includes(0) || trays.rightIds.includes(0),
+        inTray1: trays.leftIds.includes(1) || trays.rightIds.includes(1),
+        parked0: state.positions[0].x < -500 && state.positions[0].y < -500,
+        parked1: state.positions[1].x < -500 && state.positions[1].y < -500,
+      };
+    });
+
+    expect(after.groups).toBe(12);
+    expect(after.placed).toBe(0);
+    expect(after.trayCount).toBe(12);
+    expect(after.inTray0).toBe(true);
+    expect(after.inTray1).toBe(true);
+    expect(after.parked0).toBe(true);
+    expect(after.parked1).toBe(true);
+  });
+
+  test("clear-area button scatters unlocked board pieces for scatter layout", async ({ page }) => {
+    await openGame(page, { pieces: 12, layout: "scatter" });
+    await expect(page.getByTestId("clear-area")).toHaveAttribute("aria-label", /clear puzzle area/i);
+
+    await page.evaluate(() => {
+      window.__PUZZLE__.connectNeighbors(0, "right");
+      const state = window.__PUZZLE__.getState();
+      const { originX, originY } = state.layout;
+      const p0 = state.positions[0];
+      window.__PUZZLE__.tryMoveGroup(0, originX + 12 - p0.x, originY + 12 - p0.y);
+    });
+
+    await page.getByTestId("clear-area").click();
+
+    const after = await page.evaluate(() => {
+      const state = window.__PUZZLE__.getState();
+      const { pieceW, pieceH, originX, originY } = state.layout;
+      const board = {
+        minX: originX,
+        minY: originY,
+        maxX: originX + state.cols * pieceW,
+        maxY: originY + state.rows * pieceH,
+      };
+      const body = {
+        minX: state.positions[0].x,
+        minY: state.positions[0].y,
+        maxX: state.positions[0].x + pieceW,
+        maxY: state.positions[0].y + pieceH,
+      };
+      const overlaps = !(
+        body.maxX <= board.minX ||
+        body.minX >= board.maxX ||
+        body.maxY <= board.minY ||
+        body.minY >= board.maxY
+      );
+      return {
+        groups: state.groups,
+        overlaps,
         offset: {
           x: state.positions[1].x - state.positions[0].x,
           y: state.positions[1].y - state.positions[0].y,
         },
-        overlapsBoard,
-        clearedHasOnePieceGap,
       };
     });
-
-    expect(after.groups).toBe(before.groups);
-    expect(after.offset).toEqual(before.offset);
-    expect(after.placed).toBe(0);
-    expect(after.overlapsBoard).toBe(false);
-    expect(after.clearedHasOnePieceGap).toBe(true);
+    expect(after.groups).toBeLessThan(12);
+    expect(after.overlaps).toBe(false);
   });
 
   test("clear-area button leaves board-locked pieces in place", async ({ page }) => {
-    await openGame(page, { pieces: 12 });
+    await openGame(page, { pieces: 12, layout: "sideTrays" });
 
     await page.evaluate(() => {
       window.__PUZZLE__.assemblePiece(0);
@@ -639,35 +663,19 @@ test.describe("Jigsaw playfield flows", () => {
         locked0: window.__PUZZLE__.isPieceLocked(0),
         locked1: window.__PUZZLE__.isPieceLocked(1),
         locked2: window.__PUZZLE__.isPieceLocked(2),
+        trayCount: state.sideTrays.leftIds.length + state.sideTrays.rightIds.length,
       };
     });
     expect(before.locked0).toBe(true);
     expect(before.locked1).toBe(true);
     expect(before.locked2).toBe(false);
+    expect(before.trayCount).toBe(10);
 
     await page.getByTestId("clear-area").click();
 
     const after = await page.evaluate(() => {
       const state = window.__PUZZLE__.getState();
-      const { pieceW, pieceH, originX, originY } = state.layout;
-      const board = {
-        minX: originX,
-        minY: originY,
-        maxX: originX + state.cols * pieceW,
-        maxY: originY + state.rows * pieceH,
-      };
-      const body2 = {
-        minX: state.positions[2].x,
-        minY: state.positions[2].y,
-        maxX: state.positions[2].x + pieceW,
-        maxY: state.positions[2].y + pieceH,
-      };
-      const piece2Overlaps = !(
-        body2.maxX <= board.minX ||
-        body2.minX >= board.maxX ||
-        body2.maxY <= board.minY ||
-        body2.minY >= board.maxY
-      );
+      const trays = state.sideTrays;
       return {
         placed: state.placed,
         p0: { ...state.positions[0] },
@@ -675,7 +683,9 @@ test.describe("Jigsaw playfield flows", () => {
         p2: { ...state.positions[2] },
         locked0: window.__PUZZLE__.isPieceLocked(0),
         locked1: window.__PUZZLE__.isPieceLocked(1),
-        piece2Overlaps,
+        trayCount: trays.leftIds.length + trays.rightIds.length,
+        inTray2: trays.leftIds.includes(2) || trays.rightIds.includes(2),
+        parked2: state.positions[2].x < -500 && state.positions[2].y < -500,
       };
     });
 
@@ -684,7 +694,8 @@ test.describe("Jigsaw playfield flows", () => {
     expect(after.p1).toEqual(before.p1);
     expect(after.locked0).toBe(true);
     expect(after.locked1).toBe(true);
-    expect(after.p2).not.toEqual(before.p2);
-    expect(after.piece2Overlaps).toBe(false);
+    expect(after.trayCount).toBe(11);
+    expect(after.inTray2).toBe(true);
+    expect(after.parked2).toBe(true);
   });
 });

@@ -145,7 +145,7 @@ test("save and load progress round-trip", () => {
   });
   assert.ok(progress);
   assert.equal(progress.imageId, "village");
-  assert.equal(progress.layoutMode, "scatter");
+  assert.equal(progress.layoutMode, "sideTrays");
   assert.equal(saveProgress(progress), true);
   assert.ok(memory.has(key("progress")));
   assert.deepEqual(loadProgress(), progress);

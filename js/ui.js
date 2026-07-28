@@ -9,6 +9,7 @@ import {
   normalizeHardOptions,
   normalizeLayoutMode,
 } from "./settings.js";
+import { LAYOUT_SIDE_TRAYS } from "./layout.js";
 
 /** Status text, menu, and modal chrome. */
 
@@ -162,6 +163,20 @@ export function setBasketControls(count) {
     els.addBasketBtn.disabled = n >= MAX_BASKETS;
   }
   return n;
+}
+
+/**
+ * Sync clear-area button copy to the active layout mode.
+ * Side trays return pieces to trays; scatter clears into the gutters.
+ * @param {string} layoutMode
+ */
+export function setClearAreaLabel(layoutMode) {
+  const btn = els.clearAreaBtn;
+  if (!btn) return;
+  const trays = normalizeLayoutMode(layoutMode) === LAYOUT_SIDE_TRAYS;
+  const label = trays ? "Return pieces to trays" : "Clear puzzle area";
+  btn.setAttribute("aria-label", label);
+  btn.title = label;
 }
 
 export function bindChrome({

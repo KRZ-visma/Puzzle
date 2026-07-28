@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   createGroups,
+  detachPiece,
+  detachPieces,
   groupCount,
   groupIdOf,
   isFullyAssembled,
@@ -43,4 +45,28 @@ test("mergeGroups collapses clusters until fully assembled", () => {
   mergeGroups(groups, positions, 2, 0, -20, 0);
   assert.equal(isFullyAssembled(groups, 3), true);
   assert.equal(groupCount(groups), 1);
+});
+
+test("detachPiece splits a member back into a singleton group", () => {
+  const groups = createGroups(3);
+  const positions = [
+    { x: 0, y: 0 },
+    { x: 10, y: 0 },
+    { x: 20, y: 0 },
+  ];
+  mergeGroups(groups, positions, 1, 0, -10, 0);
+  assert.equal(groupCount(groups), 2);
+  detachPiece(groups, 1);
+  assert.equal(groupCount(groups), 3);
+  assert.equal(groupIdOf(groups, 1), 1);
+  assert.equal(membersOf(groups, 0).size, 1);
+  assert.equal(membersOf(groups, 1).size, 1);
+});
+
+test("detachPieces is a no-op for already-singleton pieces", () => {
+  const groups = createGroups(2);
+  detachPieces(groups, [0, 1]);
+  assert.equal(groupCount(groups), 2);
+  assert.equal(groupIdOf(groups, 0), 0);
+  assert.equal(groupIdOf(groups, 1), 1);
 });

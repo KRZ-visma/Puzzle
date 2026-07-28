@@ -268,6 +268,28 @@ export function createSideTrayUi(opts) {
     return false;
   }
 
+  /**
+   * Put pieces back into the side trays (balanced left/right).
+   * Skips ids already present. Returns how many were added.
+   * @param {Iterable<number>} pieceIds
+   */
+  function returnPieces(pieceIds) {
+    if (!enabled) return 0;
+    const have = new Set([...leftIds, ...rightIds]);
+    let added = 0;
+    for (const id of pieceIds) {
+      const n = Number(id);
+      if (!Number.isInteger(n) || n < 0) continue;
+      if (have.has(n)) continue;
+      if (leftIds.length <= rightIds.length) leftIds.push(n);
+      else rightIds.push(n);
+      have.add(n);
+      added += 1;
+    }
+    if (added > 0) redraw();
+    return added;
+  }
+
   function syncMetrics({ pieceW: pw, pieceH: ph, edgeMap: em, image: img }) {
     const sizeChanged = pw !== pieceW || ph !== pieceH;
     pieceW = pw;
@@ -391,6 +413,7 @@ export function createSideTrayUi(opts) {
     clear,
     redraw,
     removePiece,
+    returnPieces,
     getTrayPieceIds,
     getState,
     syncMetrics,

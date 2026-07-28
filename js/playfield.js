@@ -22,8 +22,8 @@ import {
   solvedPosition,
 } from "./geometry.js";
 import {
-  LAYOUT_SCATTER,
   LAYOUT_SIDE_TRAYS,
+  DEFAULT_LAYOUT_MODE,
   layoutRegions,
   normalizeLayoutMode,
   placePieces,
@@ -35,7 +35,7 @@ import {
   nestlePiecesInBasket,
   putPiecesInBasket,
   removeBasket as removeBasketRecord,
-  removePiecesFromBaskets,
+  removePiecesFromBaskets as dropPiecesFromBaskets,
   snapshotBaskets,
   translateBasket,
 } from "./baskets.js";
@@ -91,7 +91,7 @@ export function createPlayfield(
   let raf = 0;
   let showBackgroundImage = true;
   let snapFraction = SNAP_FRACTION;
-  let layoutMode = LAYOUT_SCATTER;
+  let layoutMode = DEFAULT_LAYOUT_MODE;
   let basketState = createBasketState();
   /** @type {Set<number>} */
   let trayPieceIds = new Set();
@@ -497,7 +497,7 @@ export function createPlayfield(
     if (pieceId !== null) {
       draggingBasket = null;
       panning = null;
-      removePiecesFromBaskets(basketState, groupMemberIds(pieceId));
+      dropPiecesFromBaskets(basketState, groupMemberIds(pieceId));
       emitBasketsChange();
       bringGroupToFront(pieceId);
       dragging = {
@@ -670,7 +670,7 @@ export function createPlayfield(
       cols = c;
       rows = r;
       groups = g;
-      layoutMode = normalizeLayoutMode(nextLayoutMode ?? LAYOUT_SCATTER);
+      layoutMode = normalizeLayoutMode(nextLayoutMode ?? DEFAULT_LAYOUT_MODE);
       edgeMap = createEdgeMap(cols, rows, seed);
       dragging = null;
       draggingBasket = null;
@@ -695,6 +695,16 @@ export function createPlayfield(
 
     setTrayPieceIds(ids) {
       trayPieceIds = new Set(ids || []);
+      scheduleDraw();
+    },
+
+    /**
+     * Drop basket membership for the given piece ids.
+     * @param {Iterable<number>} pieceIds
+     */
+    removePiecesFromBaskets(pieceIds) {
+      dropPiecesFromBaskets(basketState, [...pieceIds]);
+      emitBasketsChange();
       scheduleDraw();
     },
 
@@ -855,7 +865,7 @@ export function createPlayfield(
       const dx = solved.x - positions[pieceId].x;
       const dy = solved.y - positions[pieceId].y;
       const members = groups.members.get(groups.groupOf[pieceId]);
-      removePiecesFromBaskets(basketState, [...members]);
+      dropPiecesFromBaskets(basketState, [...members]);
       for (const id of members) {
         positions[id].x += dx;
         positions[id].y += dy;

@@ -157,6 +157,73 @@ export function translationOffBoard(
   return { dx: best.dx, dy: best.dy };
 }
 
+function boardRect(cols, rows, pieceW, pieceH, originX, originY) {
+  return {
+    minX: originX,
+    minY: originY,
+    maxX: originX + cols * pieceW,
+    maxY: originY + rows * pieceH,
+  };
+}
+
+/**
+ * Piece ids from unlocked groups that overlap the board silhouette.
+ * Board-locked groups are skipped. Order is stable (ascending id).
+ * @returns {number[]}
+ */
+export function collectUnlockedBoardPieceIds({
+  groups,
+  positions,
+  cols,
+  rows,
+  pieceW,
+  pieceH,
+  originX,
+  originY,
+}) {
+  const board = boardRect(cols, rows, pieceW, pieceH, originX, originY);
+  const seen = new Set();
+  /** @type {number[]} */
+  const ids = [];
+  const total = cols * rows;
+
+  for (let id = 0; id < total; id += 1) {
+    const gid = groups.groupOf[id];
+    if (seen.has(gid)) continue;
+    seen.add(gid);
+
+    if (isGroupOnBoard(groups, positions, id, cols, pieceW, pieceH, originX, originY)) {
+      continue;
+    }
+
+    const members = groups.members.get(gid);
+    const bounds = groupBounds(members, positions, pieceW, pieceH);
+    if (!rectsOverlap(bounds, board)) continue;
+
+    for (const memberId of members) ids.push(memberId);
+  }
+
+  ids.sort((a, b) => a - b);
+  return ids;
+}
+
+/**
+ * Park piece bodies off-canvas (for side-tray UI ownership).
+ * Mutates `positions`.
+ * @param {Iterable<number>} pieceIds
+ * @param {{ x: number, y: number }[]} positions
+ * @param {number} [parkX]
+ * @param {number} [parkY]
+ */
+export function parkPiecesOffCanvas(pieceIds, positions, parkX = -10000, parkY = -10000) {
+  for (const id of pieceIds) {
+    const pos = positions[id];
+    if (!pos) continue;
+    pos.x = parkX;
+    pos.y = parkY;
+  }
+}
+
 /**
  * Translate every unlocked group that overlaps the board silhouette into a gutter.
  * Board-locked groups stay on their seats. Returns how many groups were moved.
@@ -174,14 +241,7 @@ export function clearPuzzleArea({
   cssH,
   rng = Math.random,
 }) {
-  const boardW = cols * pieceW;
-  const boardH = rows * pieceH;
-  const board = {
-    minX: originX,
-    minY: originY,
-    maxX: originX + boardW,
-    maxY: originY + boardH,
-  };
+  const board = boardRect(cols, rows, pieceW, pieceH, originX, originY);
 
   const seen = new Set();
   let moved = 0;

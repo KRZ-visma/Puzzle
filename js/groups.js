@@ -59,6 +59,35 @@ export function mergeGroups(groups, positions, fromId, intoId, dx, dy) {
   return true;
 }
 
+/**
+ * Detach a piece into its own singleton group.
+ * No-op when the piece is already alone.
+ */
+export function detachPiece(groups, pieceId) {
+  const gid = groups.groupOf[pieceId];
+  const members = groups.members.get(gid);
+  if (!members) {
+    groups.groupOf[pieceId] = pieceId;
+    groups.members.set(pieceId, new Set([pieceId]));
+    return;
+  }
+  if (members.size === 1 && members.has(pieceId)) return;
+
+  members.delete(pieceId);
+  if (members.size === 0) groups.members.delete(gid);
+
+  groups.groupOf[pieceId] = pieceId;
+  groups.members.set(pieceId, new Set([pieceId]));
+}
+
+/**
+ * Detach every listed piece into its own singleton group.
+ * @param {Iterable<number>} pieceIds
+ */
+export function detachPieces(groups, pieceIds) {
+  for (const id of pieceIds) detachPiece(groups, id);
+}
+
 /** True when every piece shares a single group. */
 export function isFullyAssembled(groups, pieceCount) {
   return pieceCount > 0 && groupCount(groups) === 1;
