@@ -64,7 +64,9 @@ export function createGame() {
     },
   });
 
-  const playfield = createPlayfield(els.playfield, {
+  /** @type {ReturnType<typeof createPlayfield>} */
+  let playfield;
+  playfield = createPlayfield(els.playfield, {
     onSelectionChange(pieceId) {
       if (pieceId === null) return;
       setStatus(`Moving a ${membersLabel(pieceId)} — drag near neighbors or the board outline.`);
@@ -78,6 +80,15 @@ export function createGame() {
     onBasketsChange(snapshot) {
       setBasketControls(snapshot.baskets.length);
     },
+    onLayoutChange(layout) {
+      if (!playfield || !sideTrays.isEnabled()) return;
+      sideTrays.syncMetrics({
+        pieceW: layout.pieceW,
+        pieceH: layout.pieceH,
+        edgeMap: playfield.getEdgeMap(),
+        image,
+      });
+    },
   });
 
   function syncZoomLabel() {
@@ -87,13 +98,21 @@ export function createGame() {
   setBasketControls(0);
   syncZoomLabel();
 
+  /**
+   * Reveal tray chrome first so the playfield shrinks, then pack pieces with
+   * metrics that match the final board size (avoids stale oversized tray art).
+   */
   function syncSideTraysFromPlayfield(rng) {
-    const layout = playfield.getLayout();
-    if (layout.layoutMode !== LAYOUT_SIDE_TRAYS) {
+    const mode = playfield.getLayout().layoutMode;
+    if (mode !== LAYOUT_SIDE_TRAYS) {
       sideTrays.clear();
       playfield.setTrayPieceIds([]);
       return;
     }
+    sideTrays.setVisible(true);
+    // Force a synchronous reflow + board remeasure now that trays occupy space.
+    void els.playfield.offsetWidth;
+    const layout = playfield.relayout();
     const assigned = assignSideTrayIds(cols * rows, rng);
     sideTrays.load({
       total: cols * rows,
@@ -110,12 +129,15 @@ export function createGame() {
   }
 
   function restoreSideTraysFromPositions() {
-    const layout = playfield.getLayout();
-    if (layout.layoutMode !== LAYOUT_SIDE_TRAYS) {
+    const mode = playfield.getLayout().layoutMode;
+    if (mode !== LAYOUT_SIDE_TRAYS) {
       sideTrays.clear();
       playfield.setTrayPieceIds([]);
       return;
     }
+    sideTrays.setVisible(true);
+    void els.playfield.offsetWidth;
+    const layout = playfield.relayout();
     const positions = playfield.getPositions();
     const parked = [];
     for (let id = 0; id < positions.length; id += 1) {

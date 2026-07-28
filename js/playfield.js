@@ -57,7 +57,10 @@ function pointerMidpoint(a, b) {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }
 
-export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCameraChange, onBasketsChange }) {
+export function createPlayfield(
+  canvas,
+  { onDragEnd, onSelectionChange, onCameraChange, onBasketsChange, onLayoutChange }
+) {
   const ctx = canvas.getContext("2d");
   let dpr = 1;
   let cssW = 0;
@@ -96,6 +99,10 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
     onBasketsChange?.(snapshotBaskets(basketState));
   }
 
+  function emitLayoutChange() {
+    onLayoutChange?.(layoutMetrics());
+  }
+
   function isInTray(pieceId) {
     return trayPieceIds.has(pieceId);
   }
@@ -127,9 +134,11 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
   }
 
   function boardSize() {
-    // Side trays live in DOM panels; board uses the normal centered silhouette.
-    const marginX = cssW * 0.08;
-    const marginY = cssH * 0.1;
+    // Side trays already consume horizontal space in the DOM; use tighter
+    // margins so the dashed board silhouette stays usable on phones.
+    const trays = layoutMode === LAYOUT_SIDE_TRAYS;
+    const marginX = cssW * (trays ? 0.035 : 0.08);
+    const marginY = cssH * (trays ? 0.05 : 0.1);
     const maxBoardW = cssW - marginX * 2;
     const maxBoardH = cssH - marginY * 2;
     const aspect = cols / rows;
@@ -144,6 +153,42 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
     pad = piecePadding(pieceW, pieceH);
     originX = (cssW - boardW) / 2;
     originY = (cssH - boardH) / 2;
+  }
+
+  /**
+   * Re-measure the canvas and rescale piece seats after the DOM layout changes
+   * (e.g. side trays appearing). Returns current layout metrics.
+   */
+  function relayout() {
+    const prevW = pieceW;
+    const prevH = pieceH;
+    const prevOriginX = originX;
+    const prevOriginY = originY;
+    resize();
+    if (!cols) return layoutMetrics();
+    boardSize();
+    if (positions.length && prevW > 0) {
+      const sx = pieceW / prevW;
+      const sy = pieceH / prevH;
+      for (const pos of positions) {
+        const relX = (pos.x - prevOriginX) * sx;
+        const relY = (pos.y - prevOriginY) * sy;
+        pos.x = originX + relX;
+        pos.y = originY + relY;
+      }
+      for (const basket of basketState.baskets) {
+        const relX = (basket.x - prevOriginX) * sx;
+        const relY = (basket.y - prevOriginY) * sy;
+        basket.x = originX + relX;
+        basket.y = originY + relY;
+        basket.w *= sx;
+        basket.h *= sy;
+      }
+      buildPaths();
+    }
+    scheduleDraw();
+    emitLayoutChange();
+    return layoutMetrics();
   }
 
   function buildPaths() {
@@ -587,33 +632,7 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
   canvas.addEventListener("wheel", onWheel, { passive: false });
 
   const ro = new ResizeObserver(() => {
-    const prevW = pieceW;
-    const prevH = pieceH;
-    const prevOriginX = originX;
-    const prevOriginY = originY;
-    resize();
-    if (!cols) return;
-    boardSize();
-    if (positions.length && prevW > 0) {
-      const sx = pieceW / prevW;
-      const sy = pieceH / prevH;
-      for (const pos of positions) {
-        const relX = (pos.x - prevOriginX) * sx;
-        const relY = (pos.y - prevOriginY) * sy;
-        pos.x = originX + relX;
-        pos.y = originY + relY;
-      }
-      for (const basket of basketState.baskets) {
-        const relX = (basket.x - prevOriginX) * sx;
-        const relY = (basket.y - prevOriginY) * sy;
-        basket.x = originX + relX;
-        basket.y = originY + relY;
-        basket.w *= sx;
-        basket.h *= sy;
-      }
-      buildPaths();
-    }
-    scheduleDraw();
+    relayout();
   });
   ro.observe(canvas);
 
@@ -676,6 +695,9 @@ export function createPlayfield(canvas, { onDragEnd, onSelectionChange, onCamera
       trayPieceIds = new Set(ids || []);
       scheduleDraw();
     },
+
+    /** Force canvas + board remeasure after DOM chrome changes (side trays). */
+    relayout,
 
     getTrayPieceIds() {
       return new Set(trayPieceIds);
