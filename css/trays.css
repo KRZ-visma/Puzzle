@@ -21,9 +21,9 @@
 
 .side-tray {
   flex: 0 0 auto;
-  width: min(32vw, 11.5rem);
-  min-width: 5.5rem;
-  max-width: 14rem;
+  width: min(26vw, 10.5rem);
+  min-width: 5rem;
+  max-width: 12.5rem;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -50,17 +50,39 @@
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: scroll;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-gutter: stable;
   padding: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(31, 58, 46, 0.45) rgba(31, 58, 46, 0.08);
+}
+
+.side-tray-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.side-tray-scroll::-webkit-scrollbar-track {
+  background: rgba(31, 58, 46, 0.08);
+}
+
+.side-tray-scroll::-webkit-scrollbar-thumb {
+  background: rgba(31, 58, 46, 0.4);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 .side-tray-canvas {
   display: block;
-  width: 100%;
-  touch-action: none;
+  /* Explicit pixel size is set from JS — do not stretch via percentage height. */
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  vertical-align: top;
+  /* Allow vertical tray scrolling; piece take uses pointer slop in JS. */
+  touch-action: pan-y;
   user-select: none;
   cursor: grab;
 }
@@ -69,9 +91,20 @@
   cursor: grabbing;
 }
 
+/* Keep brand + menu clear of tray columns while trays are open. */
+body:has(.playfield-panel.with-side-trays) .chrome-bar {
+  padding-left: calc(min(26vw, 10.5rem) + 0.55rem);
+  padding-right: calc(min(26vw, 10.5rem) + 0.55rem);
+}
+
 @media (max-width: 640px) {
   .side-tray {
-    width: min(28vw, 6.75rem);
-    min-width: 4.5rem;
+    width: min(22vw, 5.25rem);
+    min-width: 3.75rem;
+  }
+
+  body:has(.playfield-panel.with-side-trays) .chrome-bar {
+    padding-left: calc(min(22vw, 5.25rem) + 0.4rem);
+    padding-right: calc(min(22vw, 5.25rem) + 0.4rem);
   }
 }

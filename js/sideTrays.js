@@ -1,6 +1,7 @@
 /**
  * Always-visible left/right side tray panels with native scrollbars.
  * Pieces are drawn on tall tray canvases (not per-piece DOM nodes).
+ * Display size is scaled to fit the tray width; playfield keeps its own metrics.
  */
 
 import {
@@ -21,6 +22,28 @@ function createPath2D(commands) {
   const path = new Path2D();
   applyPathCommands(path, commands);
   return path;
+}
+
+/**
+ * Size a canvas bitmap to match its CSS box exactly (avoids stretch distortion).
+ * @param {HTMLCanvasElement} canvas
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {number} cssW
+ * @param {number} cssH
+ */
+function sizeCanvas(canvas, ctx, cssW, cssH) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.max(1, Math.round(cssW));
+  const h = Math.max(1, Math.round(cssH));
+  canvas.style.width = `${w}px`;
+  canvas.style.height = `${h}px`;
+  const bw = Math.round(w * dpr);
+  const bh = Math.round(h * dpr);
+  if (canvas.width !== bw || canvas.height !== bh) {
+    canvas.width = bw;
+    canvas.height = bh;
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 
 /**
@@ -59,6 +82,10 @@ export function createSideTrayUi(opts) {
   let leftLocal = new Map();
   /** @type {Map<number, { x: number, y: number }>} */
   let rightLocal = new Map();
+  let leftDrawW = 0;
+  let leftDrawH = 0;
+  let rightDrawW = 0;
+  let rightDrawH = 0;
   let pieceW = 0;
   let pieceH = 0;
   let cols = 0;
@@ -68,6 +95,7 @@ export function createSideTrayUi(opts) {
   /** @type {Path2D[]} */
   let paths = [];
   let pad = 0;
+  let lastScale = 1;
 
   function setVisible(visible) {
     enabled = Boolean(visible);
@@ -101,18 +129,20 @@ export function createSideTrayUi(opts) {
       trayW: Math.max(1, trayW),
       pieceW,
       pieceH,
+      pad,
       gap: TRAY_GAP,
       paddingX: TRAY_PADDING_X,
     });
   }
 
-  function drawPieceOn(ctx, id, x, y) {
+  function drawPieceOn(ctx, id, x, y, scale) {
     const path = paths[id];
     if (!path) return;
     const col = id % cols;
     const row = Math.floor(id / cols);
     ctx.save();
     ctx.translate(x, y);
+    ctx.scale(scale, scale);
     ctx.save();
     ctx.clip(path);
     if (image) {
@@ -128,36 +158,38 @@ export function createSideTrayUi(opts) {
     ctx.restore();
   }
 
-  function paintTray(canvas, ctx, scrollEl, ids, local) {
-    const cssW = Math.max(1, scrollEl.clientWidth || leftTray.clientWidth || 120);
-    const dpr = window.devicePixelRatio || 1;
+  function paintTray(canvas, ctx, scrollEl, ids, side) {
+    const cssW = Math.max(1, scrollEl.clientWidth || (side === "left" ? leftTray.clientWidth : rightTray.clientWidth) || 120);
     const packed = packSide(ids, cssW);
-    if (ids === leftIds) leftLocal = packed.localPositions;
-    else rightLocal = packed.localPositions;
+    if (side === "left") {
+      leftLocal = packed.localPositions;
+      leftDrawW = packed.drawW;
+      leftDrawH = packed.drawH;
+    } else {
+      rightLocal = packed.localPositions;
+      rightDrawW = packed.drawW;
+      rightDrawH = packed.drawH;
+    }
+    lastScale = packed.scale;
 
     const cssH = Math.max(scrollEl.clientHeight || 1, packed.contentH);
-    canvas.style.width = `${cssW}px`;
-    canvas.style.height = `${cssH}px`;
-    canvas.width = Math.round(cssW * dpr);
-    canvas.height = Math.round(cssH * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    sizeCanvas(canvas, ctx, cssW, cssH);
     ctx.clearRect(0, 0, cssW, cssH);
 
-    // Soft tray well
     ctx.fillStyle = "rgba(31, 58, 46, 0.06)";
     ctx.fillRect(0, 0, cssW, cssH);
 
     for (const id of ids) {
       const pos = packed.localPositions.get(id);
       if (!pos) continue;
-      drawPieceOn(ctx, id, pos.x, pos.y);
+      drawPieceOn(ctx, id, pos.x, pos.y, packed.scale);
     }
   }
 
   function redraw() {
     if (!enabled) return;
-    paintTray(leftCanvas, leftCtx, leftScroll, leftIds, leftLocal);
-    paintTray(rightCanvas, rightCtx, rightScroll, rightIds, rightLocal);
+    paintTray(leftCanvas, leftCtx, leftScroll, leftIds, "left");
+    paintTray(rightCanvas, rightCtx, rightScroll, rightIds, "right");
   }
 
   /**
@@ -218,6 +250,9 @@ export function createSideTrayUi(opts) {
       pieceW,
       pieceH,
       gap: TRAY_GAP,
+      scale: lastScale,
+      drawW: leftDrawW || rightDrawW,
+      drawH: leftDrawH || rightDrawH,
     };
   }
 
@@ -243,40 +278,104 @@ export function createSideTrayUi(opts) {
     if (enabled) redraw();
   }
 
-  function eventLocalPoint(canvas, scrollEl, event) {
+  function eventLocalPoint(canvas, event) {
     const rect = canvas.getBoundingClientRect();
+    const cssW = Math.max(1, parseFloat(canvas.style.width) || rect.width);
+    const cssH = Math.max(1, parseFloat(canvas.style.height) || rect.height);
+    // Map through displayed size so hit-tests stay correct even if CSS ever drifts.
     return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
+      x: ((event.clientX - rect.left) / Math.max(1, rect.width)) * cssW,
+      y: ((event.clientY - rect.top) / Math.max(1, rect.height)) * cssH,
     };
   }
 
-  function bindTrayPointer(canvas, scrollEl, getIds, getLocal) {
-    canvas.addEventListener("pointerdown", (event) => {
-      if (!enabled) return;
-      const ids = getIds();
-      const local = getLocal();
-      const pt = eventLocalPoint(canvas, scrollEl, event);
-      const pieceId = hitTestTrayPiece(local, ids, pt.x, pt.y, pieceW, pieceH);
-      if (pieceId === null) return;
+  function bindTrayPointer(canvas, scrollEl, getIds, getLocal, getDrawSize) {
+    /** @type {null | { pointerId: number, pieceId: number, x: number, y: number }} */
+    let pending = null;
+    const TAKE_SLOP = 10;
+
+    function clearPending() {
+      pending = null;
+    }
+
+    function takePiece(pieceId, event) {
       event.preventDefault();
       event.stopPropagation();
       removePiece(pieceId);
       onTakePiece?.(pieceId, event.clientX, event.clientY, event.pointerId);
+    }
+
+    canvas.addEventListener("pointerdown", (event) => {
+      if (!enabled) return;
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      const ids = getIds();
+      const local = getLocal();
+      const { drawW, drawH } = getDrawSize();
+      const pt = eventLocalPoint(canvas, event);
+      const pieceId = hitTestTrayPiece(local, ids, pt.x, pt.y, drawW, drawH);
+      if (pieceId === null) {
+        clearPending();
+        return;
+      }
+      // Do not preventDefault yet — vertical pans must scroll the tray.
+      pending = {
+        pointerId: event.pointerId,
+        pieceId,
+        x: event.clientX,
+        y: event.clientY,
+      };
     });
+
+    canvas.addEventListener("pointermove", (event) => {
+      if (!pending || pending.pointerId !== event.pointerId) return;
+      const dx = event.clientX - pending.x;
+      const dy = event.clientY - pending.y;
+      const absX = Math.abs(dx);
+      const absY = Math.abs(dy);
+      if (absY > TAKE_SLOP && absY >= absX) {
+        // Vertical scroll gesture — leave the piece in the tray.
+        clearPending();
+        return;
+      }
+      if (absX > TAKE_SLOP || Math.hypot(dx, dy) > TAKE_SLOP * 1.4) {
+        const { pieceId } = pending;
+        clearPending();
+        takePiece(pieceId, event);
+      }
+    });
+
+    function endPending(event) {
+      if (!pending || pending.pointerId !== event.pointerId) return;
+      const { pieceId } = pending;
+      clearPending();
+      // Tap / short press pulls the piece onto the playfield.
+      takePiece(pieceId, event);
+    }
+
+    canvas.addEventListener("pointerup", endPending);
+    canvas.addEventListener("pointercancel", clearPending);
+    scrollEl.addEventListener(
+      "scroll",
+      () => {
+        clearPending();
+      },
+      { passive: true }
+    );
   }
 
   bindTrayPointer(
     leftCanvas,
     leftScroll,
     () => leftIds,
-    () => leftLocal
+    () => leftLocal,
+    () => ({ drawW: leftDrawW, drawH: leftDrawH })
   );
   bindTrayPointer(
     rightCanvas,
     rightScroll,
     () => rightIds,
-    () => rightLocal
+    () => rightLocal,
+    () => ({ drawW: rightDrawW, drawH: rightDrawH })
   );
 
   const ro = new ResizeObserver(() => {
