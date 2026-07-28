@@ -248,7 +248,7 @@ test.describe("Jigsaw playfield flows", () => {
   });
 
   test("fits a full-bleed playfield in the viewport without page scroll", async ({ page }) => {
-    await openGame(page, { pieces: 12 });
+    await openGame(page, { pieces: 12, layout: "scatter" });
 
     const viewport = await page.locator('meta[name="viewport"]').getAttribute("content");
     expect(viewport ?? "").toMatch(/maximum-scale\s*=\s*1/i);
@@ -669,7 +669,7 @@ test.describe("Jigsaw playfield flows", () => {
     expect(before.locked0).toBe(true);
     expect(before.locked1).toBe(true);
     expect(before.locked2).toBe(false);
-    expect(before.trayCount).toBe(10);
+    expect(before.trayCount).toBe(9);
 
     await page.getByTestId("clear-area").click();
 
@@ -694,7 +694,7 @@ test.describe("Jigsaw playfield flows", () => {
     expect(after.p1).toEqual(before.p1);
     expect(after.locked0).toBe(true);
     expect(after.locked1).toBe(true);
-    expect(after.trayCount).toBe(11);
+    expect(after.trayCount).toBe(10);
     expect(after.inTray2).toBe(true);
     expect(after.parked2).toBe(true);
   });
