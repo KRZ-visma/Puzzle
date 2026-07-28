@@ -1,6 +1,6 @@
 import { DIFFICULTIES } from "./config.js";
 import { normalizeImageId } from "./gallery.js";
-import { DEFAULT_LAYOUT_MODE, normalizeLayoutMode } from "./layout.js";
+import { DEFAULT_LAYOUT_MODE, LAYOUT_SCATTER, normalizeLayoutMode } from "./layout.js";
 import { loadJson, remove, saveJson } from "./storage.js";
 
 /** localStorage key for in-progress puzzle layout. */
@@ -79,7 +79,9 @@ export function normalizeProgress(raw) {
   if (!Number.isFinite(seed)) return null;
 
   const imageId = normalizeImageId(version === 1 ? undefined : data.imageId);
-  const layoutMode = normalizeLayoutMode(data.layoutMode);
+  // Legacy saves (pre-layout modes) were always scatter — keep that when missing.
+  const layoutMode =
+    data.layoutMode == null ? LAYOUT_SCATTER : normalizeLayoutMode(data.layoutMode);
 
   const total = cols * rows;
   const positions = data.positions;

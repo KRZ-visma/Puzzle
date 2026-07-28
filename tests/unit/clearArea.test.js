@@ -3,11 +3,14 @@ import { test } from "node:test";
 import {
   clearPuzzleArea,
   clampGroupToCanvas,
+  collectUnlockedBoardPieceIds,
   groupBounds,
+  parkPiecesOffCanvas,
   rectsOverlap,
   translationOffBoard,
 } from "../../js/clearArea.js";
 import { createGroups, groupCount, mergeGroups, membersOf } from "../../js/groups.js";
+import { TRAY_PARKED_X, TRAY_PARKED_Y } from "../../js/layout.js";
 
 /** Orthogonal distance between two non-overlapping AABBs (0 if overlapping). */
 function axisGap(a, b) {
@@ -265,4 +268,83 @@ test("clearPuzzleArea does not move a locked multi-piece group", () => {
   assert.deepEqual(positions[1], locked1);
   assert.notDeepEqual(positions[2], strayBefore);
   assert.equal(membersOf(groups, 0).size, 2);
+});
+
+test("collectUnlockedBoardPieceIds returns unlocked overlapping members only", () => {
+  const pieceW = 40;
+  const pieceH = 40;
+  const originX = 80;
+  const originY = 80;
+  const groups = createGroups(4);
+  mergeGroups(
+    groups,
+    [
+      { x: originX, y: originY },
+      { x: originX + pieceW, y: originY },
+      { x: originX + 8, y: originY + 8 },
+      { x: 10, y: 10 },
+    ],
+    1,
+    0,
+    0,
+    0
+  );
+  // Pieces 0+1 locked on seats as a connected group; 2 overlaps unlocked; 3 is outside.
+  const positions = [
+    { x: originX, y: originY },
+    { x: originX + pieceW, y: originY },
+    { x: originX + 8, y: originY + 8 },
+    { x: 10, y: 10 },
+  ];
+
+  const ids = collectUnlockedBoardPieceIds({
+    groups,
+    positions,
+    cols: 2,
+    rows: 2,
+    pieceW,
+    pieceH,
+    originX,
+    originY,
+  });
+  assert.deepEqual(ids, [2]);
+});
+
+test("collectUnlockedBoardPieceIds includes every member of an unlocked overlapping group", () => {
+  const pieceW = 40;
+  const pieceH = 40;
+  const originX = 80;
+  const originY = 80;
+  const groups = createGroups(4);
+  const positions = [
+    { x: originX + 5, y: originY + 5 },
+    { x: originX + 45, y: originY + 5 },
+    { x: 10, y: 10 },
+    { x: 200, y: 200 },
+  ];
+  mergeGroups(groups, positions, 1, 0, 0, 0);
+
+  const ids = collectUnlockedBoardPieceIds({
+    groups,
+    positions,
+    cols: 2,
+    rows: 2,
+    pieceW,
+    pieceH,
+    originX,
+    originY,
+  });
+  assert.deepEqual(ids, [0, 1]);
+});
+
+test("parkPiecesOffCanvas moves listed pieces to the tray parking spot", () => {
+  const positions = [
+    { x: 10, y: 20 },
+    { x: 30, y: 40 },
+    { x: 50, y: 60 },
+  ];
+  parkPiecesOffCanvas([0, 2], positions, TRAY_PARKED_X, TRAY_PARKED_Y);
+  assert.deepEqual(positions[0], { x: TRAY_PARKED_X, y: TRAY_PARKED_Y });
+  assert.deepEqual(positions[1], { x: 30, y: 40 });
+  assert.deepEqual(positions[2], { x: TRAY_PARKED_X, y: TRAY_PARKED_Y });
 });

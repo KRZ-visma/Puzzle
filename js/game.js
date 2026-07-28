@@ -1,9 +1,14 @@
-import { clearPuzzleArea as moveGroupsOffBoard, clampGroupToCanvas } from "./clearArea.js";
+import {
+  clearPuzzleArea as moveGroupsOffBoard,
+  clampGroupToCanvas,
+  collectUnlockedBoardPieceIds,
+  parkPiecesOffCanvas,
+} from "./clearArea.js";
 import { DIFFICULTIES, DEFAULT_DIFFICULTY } from "./config.js";
 import { DEFAULT_IMAGE_ID, normalizeImageId } from "./gallery.js";
 import { els } from "./dom.js";
-import { createGroups, groupCount, mergeGroups, translateGroup } from "./groups.js";
-import { LAYOUT_SIDE_TRAYS } from "./layout.js";
+import { createGroups, detachPieces, groupCount, mergeGroups, translateGroup } from "./groups.js";
+import { LAYOUT_SIDE_TRAYS, TRAY_PARKED_X, TRAY_PARKED_Y } from "./layout.js";
 import { createPlayfield } from "./playfield.js";
 import {
   buildProgress,
@@ -26,6 +31,7 @@ import {
   getSelectedDifficulty,
   getSelectedImageId,
   getSelectedLayoutMode,
+  setClearAreaLabel,
   setStatus,
   setZoomLabel,
   setBasketControls,
@@ -104,6 +110,7 @@ export function createGame() {
    */
   function syncSideTraysFromPlayfield(rng) {
     const mode = playfield.getLayout().layoutMode;
+    setClearAreaLabel(mode);
     if (mode !== LAYOUT_SIDE_TRAYS) {
       sideTrays.clear();
       playfield.setTrayPieceIds([]);
@@ -130,6 +137,7 @@ export function createGame() {
 
   function restoreSideTraysFromPositions() {
     const mode = playfield.getLayout().layoutMode;
+    setClearAreaLabel(mode);
     if (mode !== LAYOUT_SIDE_TRAYS) {
       sideTrays.clear();
       playfield.setTrayPieceIds([]);
@@ -360,12 +368,37 @@ export function createGame() {
     // Canvas selection is transient during drag; nothing sticky to clear.
   }
 
-  /** Move every group off the board silhouette, keeping groups connected. */
+  /** Move unlocked board pieces off the silhouette (trays or gutters). */
   function clearPuzzleArea() {
     if (!active || !groups || !cols) return 0;
     const layout = playfield.getLayout();
     if (!(layout.pieceW > 0) || !(layout.pieceH > 0)) return 0;
     const positions = playfield.getPositions();
+
+    if (layout.layoutMode === LAYOUT_SIDE_TRAYS && sideTrays.isEnabled()) {
+      const ids = collectUnlockedBoardPieceIds({
+        groups,
+        positions,
+        cols,
+        rows,
+        pieceW: layout.pieceW,
+        pieceH: layout.pieceH,
+        originX: layout.originX,
+        originY: layout.originY,
+      });
+      if (ids.length === 0) return 0;
+      detachPieces(groups, ids);
+      parkPiecesOffCanvas(ids, positions, TRAY_PARKED_X, TRAY_PARKED_Y);
+      playfield.removePiecesFromBaskets(ids);
+      sideTrays.returnPieces(ids);
+      playfield.setTrayPieceIds(sideTrays.getTrayPieceIds());
+      playfield.redraw();
+      refreshProgress();
+      persist();
+      setStatus("Returned pieces to the side trays.");
+      return ids.length;
+    }
+
     const moved = moveGroupsOffBoard({
       groups,
       positions,
@@ -389,8 +422,24 @@ export function createGame() {
 
   /** Test/debug: assemble one piece onto the board and resolve snaps. */
   function assemblePiece(pieceId) {
+    releasePiecesFromTrays([pieceId]);
     playfield.placePieceSolved(pieceId);
+    // placePieceSolved may move a whole group — drop all of them from trays.
+    if (groups) {
+      const members = groups.members.get(groups.groupOf[pieceId]);
+      if (members) releasePiecesFromTrays([...members]);
+    }
     afterDrop(pieceId);
+  }
+
+  /** Pull pieces out of side-tray ownership so they can live on the playfield. */
+  function releasePiecesFromTrays(pieceIds) {
+    if (!sideTrays.isEnabled()) return;
+    let changed = false;
+    for (const id of pieceIds) {
+      if (sideTrays.removePiece(id)) changed = true;
+    }
+    if (changed) playfield.setTrayPieceIds(sideTrays.getTrayPieceIds());
   }
 
   /**
@@ -415,8 +464,9 @@ export function createGame() {
     ) {
       return false;
     }
-    translateGroup(groups, positions, pieceId, dx, dy);
     const members = groups.members.get(groups.groupOf[pieceId]);
+    releasePiecesFromTrays([...members]);
+    translateGroup(groups, positions, pieceId, dx, dy);
     clampGroupToCanvas(
       members,
       positions,
@@ -447,6 +497,8 @@ export function createGame() {
     const dx = targetX - positions[otherId].x;
     const dy = targetY - positions[otherId].y;
     mergeGroups(groups, positions, otherId, pieceId, dx, dy);
+    const members = groups.members.get(groups.groupOf[pieceId]);
+    releasePiecesFromTrays([...members]);
     playfield.redraw();
     refreshProgress();
     persist();
@@ -457,6 +509,7 @@ export function createGame() {
   function solve() {
     const layout = playfield.getLayout();
     const positions = playfield.getPositions();
+    releasePiecesFromTrays(Array.from({ length: totalPieces() }, (_, id) => id));
     for (let id = 0; id < totalPieces(); id += 1) {
       const solved = solvedPosition(
         id,
@@ -575,7 +628,12 @@ export function createGame() {
     tryMoveGroup,
     isPieceLocked,
     tryMoveBasket: (basketId, dx, dy) => playfield.tryMoveBasket(basketId, dx, dy),
-    putPieceInBasket: (pieceId, basketId) => playfield.putPieceInBasket(pieceId, basketId),
+    putPieceInBasket: (pieceId, basketId) => {
+      if (!groups) return false;
+      const members = groups.members.get(groups.groupOf[pieceId]);
+      if (members) releasePiecesFromTrays([...members]);
+      return playfield.putPieceInBasket(pieceId, basketId);
+    },
     getState: () => {
       const layout = playfield.getLayout();
       const positions = playfield.getPositions();

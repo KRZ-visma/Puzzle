@@ -38,6 +38,7 @@ test("normalizeLayoutMode accepts known modes and falls back", () => {
   assert.equal(normalizeLayoutMode("baskets"), DEFAULT_LAYOUT_MODE);
   assert.equal(normalizeLayoutMode("nope"), DEFAULT_LAYOUT_MODE);
   assert.equal(normalizeLayoutMode(null), DEFAULT_LAYOUT_MODE);
+  assert.equal(DEFAULT_LAYOUT_MODE, LAYOUT_SIDE_TRAYS);
 });
 
 test("shuffleIds permutes 0..n-1 with a seeded rng", () => {

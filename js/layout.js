@@ -10,18 +10,22 @@ export const LAYOUT_SIDE_TRAYS = "sideTrays";
 /** Ordered start-menu options. */
 export const LAYOUT_MODES = Object.freeze([
   {
-    id: LAYOUT_SCATTER,
-    label: "All over the place",
-    hint: "Pieces scattered around the board",
-  },
-  {
     id: LAYOUT_SIDE_TRAYS,
     label: "Side trays",
     hint: "Pieces laid out in left and right trays",
   },
+  {
+    id: LAYOUT_SCATTER,
+    label: "All over the place",
+    hint: "Pieces scattered around the board",
+  },
 ]);
 
-export const DEFAULT_LAYOUT_MODE = LAYOUT_SCATTER;
+export const DEFAULT_LAYOUT_MODE = LAYOUT_SIDE_TRAYS;
+
+/** Off-canvas parking spot for pieces that live in the side-tray UI. */
+export const TRAY_PARKED_X = -10000;
+export const TRAY_PARKED_Y = -10000;
 
 const MODE_IDS = new Set(LAYOUT_MODES.map((m) => m.id));
 
@@ -128,7 +132,7 @@ export function layoutRegions(mode, { cols, rows, pieceW, pieceH, originX, origi
  */
 export function placeInSideTrays(layout, _rng = Math.random) {
   const total = layout.cols * layout.rows;
-  return Array.from({ length: total }, () => ({ x: -10000, y: -10000 }));
+  return Array.from({ length: total }, () => ({ x: TRAY_PARKED_X, y: TRAY_PARKED_Y }));
 }
 
 /**
