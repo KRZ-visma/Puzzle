@@ -113,6 +113,50 @@ test.describe("Jigsaw playfield flows", () => {
     expect(summary.canvasAspectOk).toBe(true);
     expect(summary.controlsOverlap).toBe(false);
     expect(summary.brandOverTray).toBe(false);
+
+    // Overflowing trays must be scrollable (native scrollbar / overflow).
+    const scrolled = await page.evaluate(() => {
+      const leftScroll = document.querySelector("[data-testid='side-tray-left-scroll']");
+      if (!leftScroll) return null;
+      const before = leftScroll.scrollTop;
+      leftScroll.scrollTop = Math.min(120, leftScroll.scrollHeight - leftScroll.clientHeight);
+      return {
+        before,
+        after: leftScroll.scrollTop,
+        scrollHeight: leftScroll.scrollHeight,
+        clientHeight: leftScroll.clientHeight,
+        touchAction: getComputedStyle(
+          document.querySelector("[data-testid='side-tray-left-canvas']")
+        ).touchAction,
+      };
+    });
+    expect(scrolled.scrollHeight).toBeGreaterThan(scrolled.clientHeight + 20);
+    expect(scrolled.after).toBeGreaterThan(scrolled.before);
+    expect(scrolled.touchAction).toMatch(/pan-y/);
+  });
+
+  test("pieces dragged off the playfield stay clamped inside the canvas", async ({ page }) => {
+    await openGame(page, { pieces: 12, layout: "scatter" });
+    const result = await page.evaluate(() => {
+      const state = window.__PUZZLE__.getState();
+      const { cssW, cssH, pieceW, pieceH } = state.layout;
+      window.__PUZZLE__.tryMoveGroup(0, -5000, -5000);
+      const pos = window.__PUZZLE__.getState().positions[0];
+      window.__PUZZLE__.tryMoveGroup(1, 5000, 5000);
+      const posFar = window.__PUZZLE__.getState().positions[1];
+      return {
+        pos,
+        posFar,
+        cssW,
+        cssH,
+        pieceW,
+        pieceH,
+      };
+    });
+    expect(result.pos.x).toBeGreaterThanOrEqual(0);
+    expect(result.pos.y).toBeGreaterThanOrEqual(0);
+    expect(result.posFar.x + result.pieceW).toBeLessThanOrEqual(result.cssW + 0.01);
+    expect(result.posFar.y + result.pieceH).toBeLessThanOrEqual(result.cssH + 0.01);
   });
 
   test("side trays stay hidden for scatter layout", async ({ page }) => {

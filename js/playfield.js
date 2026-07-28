@@ -39,6 +39,7 @@ import {
   snapshotBaskets,
   translateBasket,
 } from "./baskets.js";
+import { clampGroupToCanvas } from "./clearArea.js";
 import { isPieceOnSeat } from "./snap.js";
 
 function createPath2D(commands) {
@@ -582,6 +583,7 @@ export function createPlayfield(
       positions[id].x += dx;
       positions[id].y += dy;
     }
+    clampGroupToCanvas(members, positions, pieceW, pieceH, cssW, cssH);
     scheduleDraw();
   }
 
@@ -725,6 +727,8 @@ export function createPlayfield(
       const world = screenToWorld(camera, screen.x, screen.y);
       positions[pieceId].x = world.x - pieceW / 2;
       positions[pieceId].y = world.y - pieceH / 2;
+      const members = groups.members.get(groups.groupOf[pieceId]);
+      clampGroupToCanvas(members, positions, pieceW, pieceH, cssW, cssH);
       bringGroupToFront(pieceId);
       draggingBasket = null;
       panning = null;
@@ -879,6 +883,7 @@ export function createPlayfield(
         positions[id].x += dx;
         positions[id].y += dy;
       }
+      clampGroupToCanvas(members, positions, pieceW, pieceH, cssW, cssH);
       scheduleDraw();
       return true;
     },

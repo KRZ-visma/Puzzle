@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   clearPuzzleArea,
+  clampGroupToCanvas,
   groupBounds,
   rectsOverlap,
   translationOffBoard,
@@ -34,6 +35,27 @@ test("groupBounds covers every piece body in the cluster", () => {
     width: 50,
     height: 25,
   });
+});
+
+test("clampGroupToCanvas keeps piece bodies on the playfield", () => {
+  const positions = [
+    { x: -30, y: 10 },
+    { x: 380, y: 290 },
+  ];
+  clampGroupToCanvas([0], positions, 40, 30, 400, 300);
+  assert.equal(positions[0].x, 0);
+  assert.equal(positions[0].y, 10);
+
+  clampGroupToCanvas([1], positions, 40, 30, 400, 300);
+  assert.equal(positions[1].x, 360);
+  assert.equal(positions[1].y, 270);
+});
+
+test("clampGroupToCanvas centers an oversized group", () => {
+  const positions = [{ x: -50, y: -20 }];
+  clampGroupToCanvas([0], positions, 500, 400, 400, 300);
+  assert.equal(positions[0].x, (400 - 500) / 2);
+  assert.equal(positions[0].y, (300 - 400) / 2);
 });
 
 test("rectsOverlap detects board intersections", () => {

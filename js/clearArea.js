@@ -49,6 +49,43 @@ function clamp(value, min, max) {
 }
 
 /**
+ * Keep a group's piece bodies inside the playfield canvas [0, cssW] × [0, cssH].
+ * Oversized groups are centered on the overflowing axis.
+ * Mutates `positions`. Returns the applied translation.
+ * @param {Iterable<number>} memberIds
+ * @param {{ x: number, y: number }[]} positions
+ * @returns {{ dx: number, dy: number }}
+ */
+export function clampGroupToCanvas(memberIds, positions, pieceW, pieceH, cssW, cssH) {
+  const bounds = groupBounds(memberIds, positions, pieceW, pieceH);
+  if (!Number.isFinite(bounds.minX)) return { dx: 0, dy: 0 };
+
+  let dx = 0;
+  let dy = 0;
+
+  if (bounds.width >= cssW) {
+    dx = (cssW - (bounds.minX + bounds.maxX)) / 2;
+  } else {
+    if (bounds.minX < 0) dx = -bounds.minX;
+    else if (bounds.maxX > cssW) dx = cssW - bounds.maxX;
+  }
+
+  if (bounds.height >= cssH) {
+    dy = (cssH - (bounds.minY + bounds.maxY)) / 2;
+  } else {
+    if (bounds.minY < 0) dy = -bounds.minY;
+    else if (bounds.maxY > cssH) dy = cssH - bounds.maxY;
+  }
+
+  if (dx === 0 && dy === 0) return { dx: 0, dy: 0 };
+  for (const id of memberIds) {
+    positions[id].x += dx;
+    positions[id].y += dy;
+  }
+  return { dx, dy };
+}
+
+/**
  * Pick a translation that moves `bounds` fully outside the board rect,
  * leaving at least one piece of clearance from the board border.
  * Prefers a side that keeps the group on-canvas when possible; otherwise the

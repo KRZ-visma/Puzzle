@@ -289,30 +289,90 @@ export function createSideTrayUi(opts) {
     };
   }
 
-  function bindTrayPointer(canvas, getIds, getLocal, getDrawSize) {
+  function bindTrayPointer(canvas, scrollEl, getIds, getLocal, getDrawSize) {
+    /** @type {null | { pointerId: number, pieceId: number, x: number, y: number }} */
+    let pending = null;
+    const TAKE_SLOP = 10;
+
+    function clearPending() {
+      pending = null;
+    }
+
+    function takePiece(pieceId, event) {
+      event.preventDefault();
+      event.stopPropagation();
+      removePiece(pieceId);
+      onTakePiece?.(pieceId, event.clientX, event.clientY, event.pointerId);
+    }
+
     canvas.addEventListener("pointerdown", (event) => {
       if (!enabled) return;
+      if (event.pointerType === "mouse" && event.button !== 0) return;
       const ids = getIds();
       const local = getLocal();
       const { drawW, drawH } = getDrawSize();
       const pt = eventLocalPoint(canvas, event);
       const pieceId = hitTestTrayPiece(local, ids, pt.x, pt.y, drawW, drawH);
-      if (pieceId === null) return;
-      event.preventDefault();
-      event.stopPropagation();
-      removePiece(pieceId);
-      onTakePiece?.(pieceId, event.clientX, event.clientY, event.pointerId);
+      if (pieceId === null) {
+        clearPending();
+        return;
+      }
+      // Do not preventDefault yet — vertical pans must scroll the tray.
+      pending = {
+        pointerId: event.pointerId,
+        pieceId,
+        x: event.clientX,
+        y: event.clientY,
+      };
     });
+
+    canvas.addEventListener("pointermove", (event) => {
+      if (!pending || pending.pointerId !== event.pointerId) return;
+      const dx = event.clientX - pending.x;
+      const dy = event.clientY - pending.y;
+      const absX = Math.abs(dx);
+      const absY = Math.abs(dy);
+      if (absY > TAKE_SLOP && absY >= absX) {
+        // Vertical scroll gesture — leave the piece in the tray.
+        clearPending();
+        return;
+      }
+      if (absX > TAKE_SLOP || Math.hypot(dx, dy) > TAKE_SLOP * 1.4) {
+        const { pieceId } = pending;
+        clearPending();
+        takePiece(pieceId, event);
+      }
+    });
+
+    function endPending(event) {
+      if (!pending || pending.pointerId !== event.pointerId) return;
+      const { pieceId } = pending;
+      clearPending();
+      // Tap / short press pulls the piece onto the playfield.
+      takePiece(pieceId, event);
+    }
+
+    canvas.addEventListener("pointerup", endPending);
+    canvas.addEventListener("pointercancel", clearPending);
+    scrollEl.addEventListener(
+      "scroll",
+      () => {
+        clearPending();
+      },
+      { passive: true }
+    );
   }
 
   bindTrayPointer(
     leftCanvas,
+    leftScroll,
     () => leftIds,
     () => leftLocal,
     () => ({ drawW: leftDrawW, drawH: leftDrawH })
   );
   bindTrayPointer(
     rightCanvas,
+    rightScroll,
     () => rightIds,
     () => rightLocal,
     () => ({ drawW: rightDrawW, drawH: rightDrawH })

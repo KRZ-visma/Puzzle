@@ -1,4 +1,4 @@
-import { clearPuzzleArea as moveGroupsOffBoard } from "./clearArea.js";
+import { clearPuzzleArea as moveGroupsOffBoard, clampGroupToCanvas } from "./clearArea.js";
 import { DIFFICULTIES, DEFAULT_DIFFICULTY } from "./config.js";
 import { DEFAULT_IMAGE_ID, normalizeImageId } from "./gallery.js";
 import { els } from "./dom.js";
@@ -416,6 +416,15 @@ export function createGame() {
       return false;
     }
     translateGroup(groups, positions, pieceId, dx, dy);
+    const members = groups.members.get(groups.groupOf[pieceId]);
+    clampGroupToCanvas(
+      members,
+      positions,
+      layout.pieceW,
+      layout.pieceH,
+      layout.cssW,
+      layout.cssH
+    );
     playfield.redraw();
     return true;
   }
