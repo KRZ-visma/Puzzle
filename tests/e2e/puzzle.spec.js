@@ -230,6 +230,8 @@ test.describe("Jigsaw playfield flows", () => {
   });
 
   test("starts a puzzle with a lighter cartoon gallery image", async ({ page }) => {
+    await page.goto(`/?e2e=1`);
+    await expect(page.getByTestId("start-modal")).toBeVisible();
     await expect(page.getByTestId("gallery-option-meadows")).toBeVisible();
     await expect(page.getByTestId("gallery-option-balloons")).toBeVisible();
     await expect(page.getByTestId("gallery-option-blossoms")).toBeVisible();
