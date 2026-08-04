@@ -10,12 +10,10 @@ import {
   showStartMenu,
   setDifficultyControls,
   setImageControls,
-  setLayoutControls,
   setBasketControls,
   getSelectedDifficulty,
   setHardOptionControls,
   getSelectedImageId,
-  getSelectedLayoutMode,
   setAppVersion,
   showUpdateBanner,
   bindUpdateBanner,
@@ -26,11 +24,9 @@ import {
   loadDifficultyPreference,
   loadHardOptions,
   loadImagePreference,
-  loadLayoutPreference,
   saveDifficultyPreference,
   saveHardOptions,
   saveImagePreference,
-  saveLayoutPreference,
 } from "./settings.js";
 
 /**
@@ -49,7 +45,6 @@ const savedDifficulty = savedProgress?.difficulty ?? loadDifficultyPreference();
 const savedImageId = savedProgress?.imageId ?? loadImagePreference();
 setDifficultyControls(savedDifficulty);
 setImageControls(savedImageId);
-setLayoutControls(loadLayoutPreference());
 const hardOptions = setHardOptionControls(loadHardOptions());
 game.setHardOptions(hardOptions);
 setBasketControls(0);
@@ -89,7 +84,6 @@ function returnToStartMenu() {
   closeAppMenu();
   setDifficultyControls(loadDifficultyPreference());
   setImageControls(loadImagePreference());
-  setLayoutControls(loadLayoutPreference());
   showStartMenu(true);
   setStatus("");
 }
@@ -97,10 +91,8 @@ function returnToStartMenu() {
 function startPuzzleFromMenu() {
   const n = saveDifficultyPreference(getSelectedDifficulty());
   const imageId = saveImagePreference(getSelectedImageId());
-  const layoutMode = saveLayoutPreference(getSelectedLayoutMode());
   setDifficultyControls(n);
   setImageControls(imageId);
-  setLayoutControls(layoutMode);
   showWin(false);
   showStartMenu(false);
   clearProgress();
@@ -129,9 +121,6 @@ bindChrome({
   },
   onImageOptionSelect: (id) => {
     saveImagePreference(id);
-  },
-  onLayoutOptionSelect: (mode) => {
-    saveLayoutPreference(mode);
   },
   onStartPuzzle: () => startPuzzleFromMenu(),
   onHardOptionsChange: (options) => {

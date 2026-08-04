@@ -4,18 +4,14 @@ import { DEFAULT_DIFFICULTY } from "../../js/config.js";
 import { DEFAULT_IMAGE_ID } from "../../js/gallery.js";
 import {
   DEFAULT_HARD_OPTIONS,
-  DEFAULT_LAYOUT_MODE,
   loadDifficultyPreference,
   loadHardOptions,
   loadImagePreference,
-  loadLayoutPreference,
   normalizeDifficulty,
   normalizeHardOptions,
-  normalizeLayoutMode,
   saveDifficultyPreference,
   saveHardOptions,
   saveImagePreference,
-  saveLayoutPreference,
 } from "../../js/settings.js";
 import { key } from "../../js/storage.js";
 
@@ -112,25 +108,4 @@ test("loadImagePreference returns default when unset or invalid", () => {
   assert.equal(loadImagePreference(), DEFAULT_IMAGE_ID);
   memory.set(key("imageId"), '"not-a-real-image"');
   assert.equal(loadImagePreference(), DEFAULT_IMAGE_ID);
-});
-
-test("normalizeLayoutMode accepts known modes and falls back", () => {
-  assert.equal(normalizeLayoutMode("sideTrays"), "sideTrays");
-  assert.equal(normalizeLayoutMode("scatter"), "scatter");
-  assert.equal(normalizeLayoutMode("baskets"), DEFAULT_LAYOUT_MODE);
-  assert.equal(normalizeLayoutMode("nope"), DEFAULT_LAYOUT_MODE);
-});
-
-test("save and load layout preference round-trip", () => {
-  assert.equal(saveLayoutPreference("sideTrays"), "sideTrays");
-  assert.equal(loadLayoutPreference(), "sideTrays");
-  assert.equal(memory.get(key("layoutMode")), '"sideTrays"');
-});
-
-test("loadLayoutPreference returns default when unset or invalid", () => {
-  assert.equal(loadLayoutPreference(), DEFAULT_LAYOUT_MODE);
-  memory.set(key("layoutMode"), '"tray-of-holding"');
-  assert.equal(loadLayoutPreference(), DEFAULT_LAYOUT_MODE);
-  memory.set(key("layoutMode"), '"baskets"');
-  assert.equal(loadLayoutPreference(), DEFAULT_LAYOUT_MODE);
 });
