@@ -66,7 +66,7 @@ test("normalizeProgress accepts a valid 12-piece payload", () => {
     version: PROGRESS_VERSION,
     difficulty: 12,
     imageId: "waterfall",
-    layoutMode: "sideTrays",
+    layoutMode: "scatter",
     cols: 4,
     rows: 3,
     seed: 99,
@@ -75,7 +75,7 @@ test("normalizeProgress accepts a valid 12-piece payload", () => {
   });
   assert.equal(normalized?.difficulty, 12);
   assert.equal(normalized?.imageId, "waterfall");
-  assert.equal(normalized?.layoutMode, "sideTrays");
+  assert.equal(normalized?.layoutMode, "scatter");
   assert.equal(normalized?.seed, 99);
   assert.equal(normalized?.positions.length, 12);
 });
@@ -94,6 +94,23 @@ test("normalizeProgress defaults layoutMode when missing", () => {
     groupOf,
   });
   assert.equal(normalized?.layoutMode, "scatter");
+});
+
+test("normalizeProgress rejects removed sideTrays saves", () => {
+  const positions = Array.from({ length: 12 }, (_, i) => ({ nx: i, ny: 0 }));
+  const groupOf = Array.from({ length: 12 }, (_, i) => i);
+  const normalized = normalizeProgress({
+    version: PROGRESS_VERSION,
+    difficulty: 12,
+    imageId: "waterfall",
+    layoutMode: "sideTrays",
+    cols: 4,
+    rows: 3,
+    seed: 99,
+    positions,
+    groupOf,
+  });
+  assert.equal(normalized, null);
 });
 
 test("normalizeProgress migrates v1 saves to default gallery image", () => {

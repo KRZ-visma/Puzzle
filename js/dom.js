@@ -31,12 +31,5 @@ export const els = {
   zoomInBtn: document.getElementById("zoom-in-btn"),
   zoomOutBtn: document.getElementById("zoom-out-btn"),
   zoomResetBtn: document.getElementById("zoom-reset-btn"),
-  layoutOptions: document.getElementById("start-modal")?.querySelectorAll(".layout-option") ?? [],
   galleryVisibilityNote: document.querySelector("[data-testid='gallery-visibility-note']"),
-  sideTrayLeft: document.getElementById("side-tray-left"),
-  sideTrayRight: document.getElementById("side-tray-right"),
-  sideTrayLeftScroll: document.querySelector("#side-tray-left .side-tray-scroll"),
-  sideTrayRightScroll: document.querySelector("#side-tray-right .side-tray-scroll"),
-  sideTrayLeftCanvas: document.getElementById("side-tray-left-canvas"),
-  sideTrayRightCanvas: document.getElementById("side-tray-right-canvas"),
 };

@@ -79,6 +79,8 @@ export function normalizeProgress(raw) {
   if (!Number.isFinite(seed)) return null;
 
   const imageId = normalizeImageId(version === 1 ? undefined : data.imageId);
+  // Side-tray saves park pieces off-canvas; that layout was removed.
+  if (data.layoutMode === "sideTrays") return null;
   const layoutMode = normalizeLayoutMode(data.layoutMode);
 
   const total = cols * rows;

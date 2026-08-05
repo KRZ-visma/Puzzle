@@ -9,10 +9,8 @@ import { els } from "./dom.js";
 import { MAX_BASKETS } from "./baskets.js";
 import {
   DEFAULT_HARD_OPTIONS,
-  DEFAULT_LAYOUT_MODE,
   normalizeDifficulty,
   normalizeHardOptions,
-  normalizeLayoutMode,
 } from "./settings.js";
 
 /** Status text, menu, and modal chrome. */
@@ -20,7 +18,6 @@ import {
 let selectedDifficulty = DEFAULT_DIFFICULTY;
 let hardOptions = { ...DEFAULT_HARD_OPTIONS };
 let selectedImageId = DEFAULT_IMAGE_ID;
-let selectedLayoutMode = DEFAULT_LAYOUT_MODE;
 
 function setToggleControl(button, on) {
   if (!button) return;
@@ -157,22 +154,6 @@ export function getSelectedImageId() {
   return normalizeImageId(selectedImageId);
 }
 
-/** Sync start-menu piece layout selection. */
-export function setLayoutControls(value) {
-  const mode = normalizeLayoutMode(value);
-  selectedLayoutMode = mode;
-  for (const btn of els.layoutOptions) {
-    const selected = btn.dataset.layout === mode;
-    btn.setAttribute("aria-pressed", selected ? "true" : "false");
-    btn.classList.toggle("is-selected", selected);
-  }
-  return mode;
-}
-
-export function getSelectedLayoutMode() {
-  return normalizeLayoutMode(selectedLayoutMode);
-}
-
 /** Update the preview modal image source. */
 export function setPreviewImage(src) {
   if (!els.previewImage || !src) return;
@@ -204,7 +185,6 @@ export function bindChrome({
   onPieceOptionSelect,
   onHardOptionsChange,
   onImageOptionSelect,
-  onLayoutOptionSelect,
   onClearArea,
   onAddBasket,
   onRemoveBasket,
@@ -272,14 +252,6 @@ export function bindChrome({
       const id = normalizeImageId(btn.dataset.imageId);
       setImageControls(id);
       onImageOptionSelect?.(id);
-    });
-  }
-
-  for (const btn of els.layoutOptions) {
-    btn.addEventListener("click", () => {
-      const mode = normalizeLayoutMode(btn.dataset.layout);
-      setLayoutControls(mode);
-      onLayoutOptionSelect?.(mode);
     });
   }
 

@@ -1,7 +1,7 @@
 /* Service worker — caches the app shell and applies updates when a new version is available. */
-/* CACHE_VERSION: 2026.07.28.17 */
+/* CACHE_VERSION: 2026.08.05.19 */
 
-const CACHE_VERSION = "2026.07.28.17";
+const CACHE_VERSION = "2026.08.05.19";
 const CACHE_NAME = `puzzle-${CACHE_VERSION}`;
 
 const SHELL = [
@@ -15,10 +15,8 @@ const SHELL = [
   "./css/chrome.css",
   "./css/menu.css",
   "./css/playfield.css",
-  "./css/trays.css",
   "./css/modals.css",
   "./css/gallery.css",
-  "./css/layout.css",
   "./css/pwa.css",
   "./js/main.js",
   "./js/config.js",
@@ -33,8 +31,6 @@ const SHELL = [
   "./js/groups.js",
   "./js/clearArea.js",
   "./js/layout.js",
-  "./js/trayPack.js",
-  "./js/sideTrays.js",
   "./js/baskets.js",
   "./js/snap.js",
   "./js/dom.js",
@@ -48,6 +44,12 @@ const SHELL = [
   "./assets/gallery/village.jpg",
   "./assets/gallery/waterfall.jpg",
   "./assets/gallery/forest.jpg",
+  "./assets/gallery/blossoms.jpg",
+  "./assets/gallery/lavender.jpg",
+  "./assets/gallery/sunflowers.jpg",
+  "./assets/gallery/sunny.jpg",
+  "./assets/gallery/meadows.jpg",
+  "./assets/gallery/balloons.jpg",
   "./assets/icons/icon-192.png",
   "./assets/icons/icon-512.png",
   "./assets/icons/apple-touch-icon.png",

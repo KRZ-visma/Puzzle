@@ -2,9 +2,9 @@
  * Puzzle image gallery — CC0 / public-domain assets only.
  * Add new entries here (and under assets/gallery/) when expanding the set.
  *
- * Entries are ordered brightest-first for the start-menu default curation.
  * `approxLuminance` is a 0–255 average from a downsampled grayscale sample
  * (used only for low-visibility warnings — not for runtime image processing).
+ * Full brightest-first reordering / default swap vs the lighter #22 set is TBD.
  */
 
 /**
@@ -64,9 +64,66 @@ export const GALLERY = [
       "https://commons.wikimedia.org/wiki/File:Waterfall_in_a_wooded_ravine_(Unsplash).jpg",
     approxLuminance: 41,
   },
+  {
+    id: "blossoms",
+    title: "Cherry blossoms",
+    src: "assets/gallery/blossoms.jpg",
+    license: "CC0",
+    credit: "Karolien Brughmans",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Pink_cherry_blossom_on_blue_(Unsplash).jpg",
+    approxLuminance: 149,
+  },
+  {
+    id: "lavender",
+    title: "Lavender field",
+    src: "assets/gallery/lavender.jpg",
+    license: "CC0",
+    credit: "Dorné Marting",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Sweet_lavender_in_a_green_field_(Unsplash).jpg",
+    approxLuminance: 154,
+  },
+  {
+    id: "sunflowers",
+    title: "Sunny sunflowers",
+    src: "assets/gallery/sunflowers.jpg",
+    license: "CC0",
+    credit: "Papaver rhoeas",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Sunflowers_on_a_sunny_day_(Unsplash).jpg",
+    approxLuminance: 130,
+  },
+  {
+    id: "sunny",
+    title: "Happy sun",
+    src: "assets/gallery/sunny.jpg",
+    license: "CC0",
+    credit: "Dawn Hudson",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Happy-sun-cartoon.jpg",
+    approxLuminance: 137,
+  },
+  {
+    id: "meadows",
+    title: "Pastel meadows",
+    src: "assets/gallery/meadows.jpg",
+    license: "CC0",
+    credit: "Puzzle project",
+    sourceUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
+    approxLuminance: 218,
+  },
+  {
+    id: "balloons",
+    title: "Balloon sky",
+    src: "assets/gallery/balloons.jpg",
+    license: "CC0",
+    credit: "Puzzle project",
+    sourceUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
+    approxLuminance: 211,
+  },
 ];
 
-/** Brightest curated image — preferred default for readable pieces. */
+/** Default stays `woods` until gallery curation vs brighter #22 images is decided. */
 export const DEFAULT_IMAGE_ID = "woods";
 
 /**

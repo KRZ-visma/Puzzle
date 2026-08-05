@@ -41,7 +41,7 @@ On feature branches the version stays `dev` until merge.
 
 ## What’s included
 
-- Image gallery of CC0 / public-domain landscapes (`assets/gallery/`; see `LICENSES.md`)
+- Image gallery of CC0 / public-domain landscapes plus lighter and cartoon scenes (`assets/gallery/`; see `LICENSES.md`)
 - Canvas interlocking pieces with tab/blank edges
 - Drag with Pointer Events; neighbor snap + board silhouette snap; moving groups
 - Difficulty: 12 / 48 / 100 / 500 / 1000 pieces

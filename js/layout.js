@@ -1,23 +1,17 @@
 /**
  * Initial piece placement strategies (pure).
- * Modes: scatter (gutters), sideTrays (left/right grids).
+ * Modes: scatter (gutters around the board).
  * Movable baskets are a separate mid-game feature (see baskets.js).
  */
 
 export const LAYOUT_SCATTER = "scatter";
-export const LAYOUT_SIDE_TRAYS = "sideTrays";
 
-/** Ordered start-menu options. */
+/** Ordered start-menu options (currently scatter only). */
 export const LAYOUT_MODES = Object.freeze([
   {
     id: LAYOUT_SCATTER,
     label: "All over the place",
     hint: "Pieces scattered around the board",
-  },
-  {
-    id: LAYOUT_SIDE_TRAYS,
-    label: "Side trays",
-    hint: "Pieces laid out in left and right trays",
   },
 ]);
 
@@ -57,7 +51,7 @@ export function shuffleIds(count, rng = Math.random) {
 }
 
 /**
- * Random gutter scatter (legacy / default).
+ * Random gutter scatter (default).
  * @returns {{ x: number, y: number }[]}
  */
 export function placeScattered({
@@ -98,45 +92,10 @@ export function placeScattered({
 }
 
 /**
- * Axis-aligned tray regions used for placement and canvas chrome.
- * @returns {{ id: string, x: number, y: number, w: number, h: number }[]}
- */
-export function layoutRegions(mode, { cols, rows, pieceW, pieceH, originX, originY, cssW, cssH }) {
-  const normalized = normalizeLayoutMode(mode);
-  const boardW = cols * pieceW;
-  const gap = 6;
-
-  if (normalized === LAYOUT_SIDE_TRAYS) {
-    const trayTop = gap;
-    const trayH = Math.max(pieceH, cssH - gap * 2);
-    const leftW = Math.max(pieceW, originX - gap * 2);
-    const rightX = originX + boardW + gap;
-    const rightW = Math.max(pieceW, cssW - rightX - gap);
-    return [
-      { id: "left", x: gap, y: trayTop, w: leftW, h: trayH },
-      { id: "right", x: rightX, y: trayTop, w: rightW, h: trayH },
-    ];
-  }
-
-  return [];
-}
-
-/**
- * Left/right trays: park pieces off-canvas.
- * Visible tray placement is handled by the scrollable side-tray UI.
- * @returns {{ x: number, y: number }[]}
- */
-export function placeInSideTrays(layout, _rng = Math.random) {
-  const total = layout.cols * layout.rows;
-  return Array.from({ length: total }, () => ({ x: -10000, y: -10000 }));
-}
-
-/**
  * Place every piece for the chosen layout mode.
  * @returns {{ x: number, y: number }[]}
  */
 export function placePieces(mode, layout, rng = Math.random) {
-  const normalized = normalizeLayoutMode(mode);
-  if (normalized === LAYOUT_SIDE_TRAYS) return placeInSideTrays(layout, rng);
+  normalizeLayoutMode(mode);
   return placeScattered({ ...layout, rng });
 }
