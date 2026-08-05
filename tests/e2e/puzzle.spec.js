@@ -1,15 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-async function openGame(page, { pieces = 12, imageId, layout } = {}) {
+async function openGame(page, { pieces = 12, imageId } = {}) {
   await page.goto(`/?e2e=1`);
   await expect(page.getByTestId("start-modal")).toBeVisible();
   if (imageId) {
     await page.getByTestId(`gallery-option-${imageId}`).click();
   }
   await page.getByTestId(`piece-option-${pieces}`).click();
-  if (layout) {
-    await page.getByTestId(`layout-option-${layout}`).click();
-  }
   await page.getByTestId("start-puzzle").click();
   await expect(page.getByTestId("start-modal")).toBeHidden();
   await expect.poll(async () => {
@@ -28,115 +25,37 @@ test.describe("Jigsaw playfield flows", () => {
     await expect(page.getByTestId("gallery-options")).toBeVisible();
     await expect(page.getByTestId("gallery-option-woods")).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByTestId("piece-options")).toBeVisible();
-    await expect(page.getByTestId("layout-options")).toBeVisible();
-    await expect(page.getByTestId("layout-option-scatter")).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByTestId("layout-option-sideTrays")).toBeVisible();
-    await expect(page.getByTestId("layout-option-baskets")).toHaveCount(0);
+    await expect(page.getByTestId("layout-options")).toHaveCount(0);
+    await expect(page.getByTestId("layout-option-sideTrays")).toHaveCount(0);
+    await expect(page.getByTestId("side-tray-left")).toHaveCount(0);
+    await expect(page.getByTestId("side-tray-right")).toHaveCount(0);
     await expect(page.getByTestId("start-puzzle")).toBeVisible();
     await expect(page.getByTestId("start-lead")).toContainText(/Pick an image/i);
     await expect(page.getByTestId("start-lead")).toContainText(/connect tabs/i);
     await expect(page.getByTestId("status")).toHaveText("");
   });
 
-  test("starts with side trays that stay visible, scroll, and space pieces evenly", async ({ page }) => {
-    await openGame(page, { pieces: 48, layout: "sideTrays" });
-    await expect(page.getByTestId("side-tray-left")).toBeVisible();
-    await expect(page.getByTestId("side-tray-right")).toBeVisible();
-
+  test("starts with scatter layout and no side trays", async ({ page }) => {
+    await openGame(page, { pieces: 12 });
     const summary = await page.evaluate(() => {
       const state = window.__PUZZLE__.getState();
-      const trays = state.sideTrays;
-      const left = document.querySelector("[data-testid='side-tray-left']");
-      const leftScroll = document.querySelector("[data-testid='side-tray-left-scroll']");
-      const leftCanvas = document.querySelector("[data-testid='side-tray-left-canvas']");
-      const clearBtn = document.querySelector("[data-testid='clear-area']");
-      const baskets = document.querySelector("[data-testid='basket-controls']");
-      const zoom = document.querySelector("[data-testid='zoom-controls']");
-      const brand = document.querySelector(".brand");
-      const overlaps = (a, b) => {
-        if (!a || !b) return false;
-        const ra = a.getBoundingClientRect();
-        const rb = b.getBoundingClientRect();
-        return !(ra.right <= rb.left || ra.left >= rb.right || ra.bottom <= rb.top || ra.top >= rb.bottom);
-      };
-      const canvasRect = leftCanvas?.getBoundingClientRect();
-      const styleW = leftCanvas ? parseFloat(leftCanvas.style.width) : 0;
-      const styleH = leftCanvas ? parseFloat(leftCanvas.style.height) : 0;
       return {
-        enabled: trays.enabled,
-        leftCount: trays.leftIds.length,
-        rightCount: trays.rightIds.length,
-        gap: trays.gap,
-        pieceH: trays.pieceH,
-        pieceW: trays.pieceW,
-        layoutPieceW: state.layout.pieceW,
-        scale: trays.scale,
-        drawW: trays.drawW,
-        trayW: left ? left.getBoundingClientRect().width : 0,
-        boardW: state.cols ? state.layout.pieceW * state.cols : 0,
-        cssW: state.layout.cssW,
-        scrollOverflow: leftScroll ? getComputedStyle(leftScroll).overflowY : "",
-        canvasTallerThanTray:
-          leftCanvas && left
-            ? leftCanvas.getBoundingClientRect().height > left.getBoundingClientRect().height + 1
-            : false,
-        canvasAspectOk:
-          canvasRect && styleW > 0 && styleH > 0
-            ? Math.abs(canvasRect.width / canvasRect.height - styleW / styleH) < 0.02
-            : false,
-        controlsOverlap: overlaps(clearBtn, zoom) || overlaps(baskets, zoom),
-        brandOverTray: (() => {
-          if (!brand || !left) return false;
-          const br = brand.getBoundingClientRect();
-          const tr = left.getBoundingClientRect();
-          return br.left < tr.right - 4;
-        })(),
         layoutMode: state.layout.layoutMode,
         placed: state.placed,
+        total: state.total,
+        onCanvas: state.positions.every((p) => p.x >= -1 && p.y >= -1),
       };
     });
-
-    expect(summary.layoutMode).toBe("sideTrays");
-    expect(summary.enabled).toBe(true);
+    expect(summary.layoutMode).toBe("scatter");
     expect(summary.placed).toBe(0);
-    expect(summary.leftCount).toBeGreaterThanOrEqual(20);
-    expect(summary.rightCount).toBeGreaterThanOrEqual(20);
-    expect(summary.leftCount + summary.rightCount).toBe(48);
-    expect(summary.gap).toBeGreaterThan(0);
-    expect(summary.scrollOverflow).toMatch(/auto|scroll/);
-    expect(summary.canvasTallerThanTray).toBe(true);
-    // Tray metrics must match the post-tray board size (not the pre-tray full width).
-    expect(Math.abs(summary.pieceW - summary.layoutPieceW)).toBeLessThan(0.05);
-    expect(summary.drawW).toBeGreaterThan(0);
-    expect(summary.drawW).toBeLessThanOrEqual(summary.trayW);
-    expect(summary.boardW / summary.cssW).toBeGreaterThan(0.7);
-    expect(summary.canvasAspectOk).toBe(true);
-    expect(summary.controlsOverlap).toBe(false);
-    expect(summary.brandOverTray).toBe(false);
-
-    // Overflowing trays must be scrollable (native scrollbar / overflow).
-    const scrolled = await page.evaluate(() => {
-      const leftScroll = document.querySelector("[data-testid='side-tray-left-scroll']");
-      if (!leftScroll) return null;
-      const before = leftScroll.scrollTop;
-      leftScroll.scrollTop = Math.min(120, leftScroll.scrollHeight - leftScroll.clientHeight);
-      return {
-        before,
-        after: leftScroll.scrollTop,
-        scrollHeight: leftScroll.scrollHeight,
-        clientHeight: leftScroll.clientHeight,
-        touchAction: getComputedStyle(
-          document.querySelector("[data-testid='side-tray-left-canvas']")
-        ).touchAction,
-      };
-    });
-    expect(scrolled.scrollHeight).toBeGreaterThan(scrolled.clientHeight + 20);
-    expect(scrolled.after).toBeGreaterThan(scrolled.before);
-    expect(scrolled.touchAction).toMatch(/pan-y/);
+    expect(summary.total).toBe(12);
+    expect(summary.onCanvas).toBe(true);
+    await expect(page.getByTestId("side-tray-left")).toHaveCount(0);
+    await expect(page.getByTestId("side-tray-right")).toHaveCount(0);
   });
 
   test("pieces dragged off the playfield stay clamped inside the canvas", async ({ page }) => {
-    await openGame(page, { pieces: 12, layout: "scatter" });
+    await openGame(page, { pieces: 12 });
     const result = await page.evaluate(() => {
       const state = window.__PUZZLE__.getState();
       const { cssW, cssH, pieceW, pieceH } = state.layout;
@@ -157,12 +76,6 @@ test.describe("Jigsaw playfield flows", () => {
     expect(result.pos.y).toBeGreaterThanOrEqual(0);
     expect(result.posFar.x + result.pieceW).toBeLessThanOrEqual(result.cssW + 0.01);
     expect(result.posFar.y + result.pieceH).toBeLessThanOrEqual(result.cssH + 0.01);
-  });
-
-  test("side trays stay hidden for scatter layout", async ({ page }) => {
-    await openGame(page, { pieces: 12, layout: "scatter" });
-    await expect(page.getByTestId("side-tray-left")).toBeHidden();
-    await expect(page.getByTestId("side-tray-right")).toBeHidden();
   });
 
   test("basket controls start empty and can add, move, and remove baskets", async ({ page }) => {

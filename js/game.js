@@ -3,7 +3,7 @@ import { DIFFICULTIES, DEFAULT_DIFFICULTY } from "./config.js";
 import { DEFAULT_IMAGE_ID, normalizeImageId } from "./gallery.js";
 import { els } from "./dom.js";
 import { createGroups, groupCount, mergeGroups, translateGroup } from "./groups.js";
-import { LAYOUT_SIDE_TRAYS } from "./layout.js";
+import { DEFAULT_LAYOUT_MODE } from "./layout.js";
 import { createPlayfield } from "./playfield.js";
 import {
   buildProgress,
@@ -13,8 +13,6 @@ import {
   saveProgress,
 } from "./progress.js";
 import { createRng } from "./rng.js";
-import { createSideTrayUi } from "./sideTrays.js";
-import { assignSideTrayIds } from "./trayPack.js";
 import {
   countPlacedPieces,
   isGroupOnBoard,
@@ -25,7 +23,6 @@ import {
 import {
   getSelectedDifficulty,
   getSelectedImageId,
-  getSelectedLayoutMode,
   setStatus,
   setZoomLabel,
   setBasketControls,
@@ -49,21 +46,6 @@ export function createGame() {
   let image = null;
   let active = false;
 
-  const sideTrays = createSideTrayUi({
-    panel: els.playfieldPanel,
-    leftTray: els.sideTrayLeft,
-    rightTray: els.sideTrayRight,
-    leftScroll: els.sideTrayLeftScroll,
-    rightScroll: els.sideTrayRightScroll,
-    leftCanvas: els.sideTrayLeftCanvas,
-    rightCanvas: els.sideTrayRightCanvas,
-    onTakePiece(pieceId, clientX, clientY, pointerId) {
-      playfield.takeTrayPieceAndDrag(pieceId, clientX, clientY, pointerId);
-      playfield.setTrayPieceIds(sideTrays.getTrayPieceIds());
-      persist();
-    },
-  });
-
   /** @type {ReturnType<typeof createPlayfield>} */
   let playfield;
   playfield = createPlayfield(els.playfield, {
@@ -80,15 +62,6 @@ export function createGame() {
     onBasketsChange(snapshot) {
       setBasketControls(snapshot.baskets.length);
     },
-    onLayoutChange(layout) {
-      if (!playfield || !sideTrays.isEnabled()) return;
-      sideTrays.syncMetrics({
-        pieceW: layout.pieceW,
-        pieceH: layout.pieceH,
-        edgeMap: playfield.getEdgeMap(),
-        image,
-      });
-    },
   });
 
   function syncZoomLabel() {
@@ -97,66 +70,6 @@ export function createGame() {
 
   setBasketControls(0);
   syncZoomLabel();
-
-  /**
-   * Reveal tray chrome first so the playfield shrinks, then pack pieces with
-   * metrics that match the final board size (avoids stale oversized tray art).
-   */
-  function syncSideTraysFromPlayfield(rng) {
-    const mode = playfield.getLayout().layoutMode;
-    if (mode !== LAYOUT_SIDE_TRAYS) {
-      sideTrays.clear();
-      playfield.setTrayPieceIds([]);
-      return;
-    }
-    sideTrays.setVisible(true);
-    // Force a synchronous reflow + board remeasure now that trays occupy space.
-    void els.playfield.offsetWidth;
-    const layout = playfield.relayout();
-    const assigned = assignSideTrayIds(cols * rows, rng);
-    sideTrays.load({
-      total: cols * rows,
-      cols,
-      rows,
-      pieceW: layout.pieceW,
-      pieceH: layout.pieceH,
-      edgeMap: playfield.getEdgeMap(),
-      image,
-      leftIds: assigned.leftIds,
-      rightIds: assigned.rightIds,
-    });
-    playfield.setTrayPieceIds(sideTrays.getTrayPieceIds());
-  }
-
-  function restoreSideTraysFromPositions() {
-    const mode = playfield.getLayout().layoutMode;
-    if (mode !== LAYOUT_SIDE_TRAYS) {
-      sideTrays.clear();
-      playfield.setTrayPieceIds([]);
-      return;
-    }
-    sideTrays.setVisible(true);
-    void els.playfield.offsetWidth;
-    const layout = playfield.relayout();
-    const positions = playfield.getPositions();
-    const parked = [];
-    for (let id = 0; id < positions.length; id += 1) {
-      if (positions[id].x < -500 || positions[id].y < -500) parked.push(id);
-    }
-    const mid = Math.ceil(parked.length / 2);
-    sideTrays.load({
-      total: cols * rows,
-      cols,
-      rows,
-      pieceW: layout.pieceW,
-      pieceH: layout.pieceH,
-      edgeMap: playfield.getEdgeMap(),
-      image,
-      leftIds: parked.slice(0, mid),
-      rightIds: parked.slice(mid),
-    });
-    playfield.setTrayPieceIds(sideTrays.getTrayPieceIds());
-  }
 
   function totalPieces() {
     return cols * rows;
@@ -265,7 +178,6 @@ export function createGame() {
   function newGame() {
     const nextDifficulty = getSelectedDifficulty();
     const nextImageId = normalizeImageId(getSelectedImageId());
-    const nextLayoutMode = getSelectedLayoutMode();
     const chosen = DIFFICULTIES[nextDifficulty] || DIFFICULTIES[DEFAULT_DIFFICULTY];
     const nextSeed = (Date.now() ^ (chosen.cols * 997) ^ (chosen.rows * 131)) >>> 0 || 1;
 
@@ -293,10 +205,9 @@ export function createGame() {
         rows,
         groups,
         seed,
-        layoutMode: nextLayoutMode,
+        layoutMode: DEFAULT_LAYOUT_MODE,
         scatterRng: createRng(seed ^ 0x9e3779b9),
       });
-      syncSideTraysFromPlayfield(createRng(seed ^ 0x9e3779b9));
       syncZoomLabel();
       refreshProgress();
       persist();
@@ -327,14 +238,13 @@ export function createGame() {
         rows,
         groups,
         seed,
-        layoutMode: saved.layoutMode,
+        layoutMode: saved.layoutMode || DEFAULT_LAYOUT_MODE,
         // Temporary scatter; replaced immediately with deserialized seats.
         scatterRng: createRng(seed ^ 0x9e3779b9),
       });
 
       const layout = playfield.getLayout();
       playfield.setPositions(deserializePositions(saved.positions, layout));
-      restoreSideTraysFromPositions();
       syncZoomLabel();
       refreshProgress();
       persist();
@@ -352,7 +262,6 @@ export function createGame() {
   /** Clear saved progress (used before returning to the start menu). */
   function abandonProgress() {
     active = false;
-    sideTrays.clear();
     clearProgress();
   }
 
@@ -550,15 +459,6 @@ export function createGame() {
     setImage(img) {
       image = img;
       playfield.setImage(img);
-      if (sideTrays.isEnabled()) {
-        const layout = playfield.getLayout();
-        sideTrays.syncMetrics({
-          pieceW: layout.pieceW,
-          pieceH: layout.pieceH,
-          edgeMap: playfield.getEdgeMap(),
-          image: img,
-        });
-      }
     },
     setHardOptions(options) {
       playfield.setHardOptions(options);
@@ -603,7 +503,6 @@ export function createGame() {
         threshold: layout.threshold,
         positions: positions.map((p) => ({ ...p })),
         baskets,
-        sideTrays: sideTrays.getState(),
         layout: {
           pieceW: layout.pieceW,
           pieceH: layout.pieceH,

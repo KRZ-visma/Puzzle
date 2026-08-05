@@ -96,11 +96,6 @@
     <main class="stage stage-playfield">
       <section class="playfield-panel" id="playfield-panel" aria-label="Jigsaw playfield">
         <p id="status" class="status visually-hidden" data-testid="status" aria-live="polite"></p>
-        <aside id="side-tray-left" class="side-tray side-tray-left" hidden aria-label="Left piece tray" data-testid="side-tray-left">
-          <div class="side-tray-scroll" data-testid="side-tray-left-scroll">
-            <canvas id="side-tray-left-canvas" class="side-tray-canvas" data-testid="side-tray-left-canvas"></canvas>
-          </div>
-        </aside>
         <div class="playfield-main">
           <canvas
             id="playfield"
@@ -181,11 +176,6 @@
             </button>
           </div>
         </div>
-        <aside id="side-tray-right" class="side-tray side-tray-right" hidden aria-label="Right piece tray" data-testid="side-tray-right">
-          <div class="side-tray-scroll" data-testid="side-tray-right-scroll">
-            <canvas id="side-tray-right-canvas" class="side-tray-canvas" data-testid="side-tray-right-canvas"></canvas>
-          </div>
-        </aside>
       </section>
     </main>
 
@@ -331,36 +321,6 @@
             <span class="piece-option-count">1000</span>
             <span class="piece-option-grid">40×25</span>
           </button>
-        </div>
-        <div class="layout-section">
-          <p class="layout-label" id="layout-label">Piece layout</p>
-          <div
-            class="layout-options"
-            role="radiogroup"
-            aria-labelledby="layout-label"
-            data-testid="layout-options"
-          >
-            <button
-              type="button"
-              class="layout-option"
-              data-layout="scatter"
-              data-testid="layout-option-scatter"
-              aria-pressed="true"
-            >
-              <span class="layout-option-title">All over the place</span>
-              <span class="layout-option-hint">Scattered around the board</span>
-            </button>
-            <button
-              type="button"
-              class="layout-option"
-              data-layout="sideTrays"
-              data-testid="layout-option-sideTrays"
-              aria-pressed="false"
-            >
-              <span class="layout-option-title">Side trays</span>
-              <span class="layout-option-hint">Always-visible trays with scroll</span>
-            </button>
-          </div>
         </div>
         <button type="button" id="start-btn" class="btn btn-primary start-btn" data-testid="start-puzzle">
           Start puzzle
