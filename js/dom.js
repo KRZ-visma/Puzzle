@@ -31,4 +31,5 @@ export const els = {
   zoomInBtn: document.getElementById("zoom-in-btn"),
   zoomOutBtn: document.getElementById("zoom-out-btn"),
   zoomResetBtn: document.getElementById("zoom-reset-btn"),
+  galleryVisibilityNote: document.querySelector("[data-testid='gallery-visibility-note']"),
 };

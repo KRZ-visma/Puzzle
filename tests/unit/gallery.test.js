@@ -4,6 +4,8 @@ import {
   DEFAULT_IMAGE_ID,
   GALLERY,
   getGalleryImage,
+  isLowVisibilityImage,
+  LOW_VISIBILITY_LUMINANCE,
   normalizeImageId,
 } from "../../js/gallery.js";
 
@@ -21,7 +23,22 @@ test("gallery entries use CC0-licensed local assets", () => {
       COMMONS_SOURCE.test(entry.sourceUrl) || CC0_SOURCE.test(entry.sourceUrl),
       `unexpected sourceUrl for ${entry.id}: ${entry.sourceUrl}`
     );
+    assert.equal(typeof entry.approxLuminance, "number");
+    assert.ok(entry.approxLuminance >= 0 && entry.approxLuminance <= 255);
   }
+});
+
+test("default image is readable and dim art is flagged", () => {
+  assert.equal(DEFAULT_IMAGE_ID, "woods");
+  assert.ok(getGalleryImage(DEFAULT_IMAGE_ID).approxLuminance >= LOW_VISIBILITY_LUMINANCE);
+  assert.equal(isLowVisibilityImage("woods"), false);
+  assert.equal(isLowVisibilityImage("forest"), false);
+  assert.equal(isLowVisibilityImage("village"), true);
+  assert.equal(isLowVisibilityImage("waterfall"), true);
+  assert.equal(isLowVisibilityImage(getGalleryImage("waterfall")), true);
+  assert.equal(isLowVisibilityImage("meadows"), false);
+  assert.equal(isLowVisibilityImage("balloons"), false);
+  assert.equal(isLowVisibilityImage("missing"), false);
 });
 
 test("normalizeImageId accepts known ids and falls back otherwise", () => {
