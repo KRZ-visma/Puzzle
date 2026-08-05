@@ -43,6 +43,57 @@ export const GALLERY = [
     sourceUrl:
       "https://commons.wikimedia.org/wiki/File:Forest_skyline_and_clouds_(Unsplash).jpg",
   },
+  {
+    id: "blossoms",
+    title: "Cherry blossoms",
+    src: "assets/gallery/blossoms.jpg",
+    license: "CC0",
+    credit: "Karolien Brughmans",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Pink_cherry_blossom_on_blue_(Unsplash).jpg",
+  },
+  {
+    id: "lavender",
+    title: "Lavender field",
+    src: "assets/gallery/lavender.jpg",
+    license: "CC0",
+    credit: "Dorné Marting",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Sweet_lavender_in_a_green_field_(Unsplash).jpg",
+  },
+  {
+    id: "sunflowers",
+    title: "Sunny sunflowers",
+    src: "assets/gallery/sunflowers.jpg",
+    license: "CC0",
+    credit: "Papaver rhoeas",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Sunflowers_on_a_sunny_day_(Unsplash).jpg",
+  },
+  {
+    id: "sunny",
+    title: "Happy sun",
+    src: "assets/gallery/sunny.jpg",
+    license: "CC0",
+    credit: "Dawn Hudson",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Happy-sun-cartoon.jpg",
+  },
+  {
+    id: "meadows",
+    title: "Pastel meadows",
+    src: "assets/gallery/meadows.jpg",
+    license: "CC0",
+    credit: "Puzzle project",
+    sourceUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
+  },
+  {
+    id: "balloons",
+    title: "Balloon sky",
+    src: "assets/gallery/balloons.jpg",
+    license: "CC0",
+    credit: "Puzzle project",
+    sourceUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
+  },
 ];
 
 export const DEFAULT_IMAGE_ID = "woods";

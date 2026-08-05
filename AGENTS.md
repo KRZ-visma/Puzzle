@@ -80,7 +80,7 @@ These are project constraints. Follow them unless the user explicitly overrides 
 | `tests/unit/` | Fast pure-module tests |
 | `playwright.config.js` | Playwright config (serves static app) |
 | `package.json` | Dev-only test tooling |
-| `assets/gallery/` | CC0 puzzle images + `LICENSES.md` |
+| `assets/gallery/` | CC0 puzzle images (landscapes, lighter scenes, cartoons) + `LICENSES.md` |
 | `js/gallery.js` | Gallery catalog / image id helpers (pure) |
 | `assets/icons/` | PWA icons |
 | `README.md` | Human setup / Pages docs |
