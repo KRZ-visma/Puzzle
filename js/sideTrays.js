@@ -9,6 +9,7 @@ import {
   buildPiecePathCommands,
   piecePadding,
 } from "./geometry.js";
+import { strokePiecePath } from "./pieceStroke.js";
 import {
   assignSideTrayIds,
   hitTestTrayPiece,
@@ -152,9 +153,7 @@ export function createSideTrayUi(opts) {
       ctx.fill(path);
     }
     ctx.restore();
-    ctx.strokeStyle = "rgba(31, 58, 46, 0.45)";
-    ctx.lineWidth = Math.max(0.6, Math.min(pieceW, pieceH) * 0.03);
-    ctx.stroke(path);
+    strokePiecePath(ctx, path, Math.min(pieceW, pieceH), 1);
     ctx.restore();
   }
 

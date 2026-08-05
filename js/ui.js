@@ -1,5 +1,10 @@
 import { DEFAULT_DIFFICULTY } from "./config.js";
-import { DEFAULT_IMAGE_ID, getGalleryImage, normalizeImageId } from "./gallery.js";
+import {
+  DEFAULT_IMAGE_ID,
+  getGalleryImage,
+  isLowVisibilityImage,
+  normalizeImageId,
+} from "./gallery.js";
 import { els } from "./dom.js";
 import { MAX_BASKETS } from "./baskets.js";
 import {
@@ -107,15 +112,43 @@ export function getHardOptions() {
   return { ...hardOptions };
 }
 
+/** Ensure dim-image badges match gallery luminance metadata. */
+function syncGalleryVisibilityBadges() {
+  for (const btn of els.galleryOptions) {
+    const low = isLowVisibilityImage(btn.dataset.imageId);
+    btn.classList.toggle("is-low-visibility", low);
+    let badge = btn.querySelector(".gallery-option-badge");
+    if (low) {
+      if (!badge) {
+        badge = document.createElement("span");
+        badge.className = "gallery-option-badge";
+        badge.textContent = "Dim";
+        btn.appendChild(badge);
+      }
+    } else if (badge) {
+      badge.remove();
+    }
+  }
+}
+
+/** Show/hide the dim-image note under the gallery. */
+function syncGalleryVisibilityNote(imageId) {
+  const note = els.galleryVisibilityNote;
+  if (!note) return;
+  note.hidden = !isLowVisibilityImage(imageId);
+}
+
 /** Sync start-menu gallery selection and preview image. */
 export function setImageControls(value) {
   const id = normalizeImageId(value);
   selectedImageId = id;
+  syncGalleryVisibilityBadges();
   for (const btn of els.galleryOptions) {
     const selected = btn.dataset.imageId === id;
     btn.setAttribute("aria-pressed", selected ? "true" : "false");
     btn.classList.toggle("is-selected", selected);
   }
+  syncGalleryVisibilityNote(id);
   setPreviewImage(getGalleryImage(id).src);
   return id;
 }

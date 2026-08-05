@@ -28,6 +28,7 @@ import {
   normalizeLayoutMode,
   placePieces,
 } from "./layout.js";
+import { strokePiecePath } from "./pieceStroke.js";
 import {
   addBasket as addBasketRecord,
   createBasketState,
@@ -333,9 +334,7 @@ export function createPlayfield(
     }
     ctx.restore();
     ctx.shadowColor = "transparent";
-    ctx.strokeStyle = "rgba(31, 58, 46, 0.45)";
-    ctx.lineWidth = Math.max(0.6, Math.min(pieceW, pieceH) * 0.03) / camera.scale;
-    ctx.stroke(path);
+    strokePiecePath(ctx, path, Math.min(pieceW, pieceH), camera.scale);
     ctx.restore();
   }
 

@@ -1,9 +1,26 @@
 /**
  * Puzzle image gallery — CC0 / public-domain assets only.
  * Add new entries here (and under assets/gallery/) when expanding the set.
+ *
+ * Entries are ordered brightest-first for the start-menu default curation.
+ * `approxLuminance` is a 0–255 average from a downsampled grayscale sample
+ * (used only for low-visibility warnings — not for runtime image processing).
  */
 
-/** @typedef {{ id: string, title: string, src: string, license: string, credit: string, sourceUrl: string }} GalleryImage */
+/**
+ * @typedef {{
+ *   id: string,
+ *   title: string,
+ *   src: string,
+ *   license: string,
+ *   credit: string,
+ *   sourceUrl: string,
+ *   approxLuminance: number,
+ * }} GalleryImage
+ */
+
+/** Below this average luminance, show a “dim image” hint in the start menu. */
+export const LOW_VISIBILITY_LUMINANCE = 90;
 
 /** @type {GalleryImage[]} */
 export const GALLERY = [
@@ -15,24 +32,7 @@ export const GALLERY = [
     credit: "Chris Abney",
     sourceUrl:
       "https://commons.wikimedia.org/wiki/File:Peaceful_mountain_woods_(Unsplash).jpg",
-  },
-  {
-    id: "village",
-    title: "Alpine village",
-    src: "assets/gallery/village.jpg",
-    license: "CC0",
-    credit: "Olivier Miche",
-    sourceUrl:
-      "https://commons.wikimedia.org/wiki/File:Adelboden_village_landscape_(Unsplash).jpg",
-  },
-  {
-    id: "waterfall",
-    title: "Wooded waterfall",
-    src: "assets/gallery/waterfall.jpg",
-    license: "CC0",
-    credit: "Nathan Anderson",
-    sourceUrl:
-      "https://commons.wikimedia.org/wiki/File:Waterfall_in_a_wooded_ravine_(Unsplash).jpg",
+    approxLuminance: 121,
   },
   {
     id: "forest",
@@ -42,9 +42,31 @@ export const GALLERY = [
     credit: "Fineas Anton",
     sourceUrl:
       "https://commons.wikimedia.org/wiki/File:Forest_skyline_and_clouds_(Unsplash).jpg",
+    approxLuminance: 109,
+  },
+  {
+    id: "village",
+    title: "Alpine village",
+    src: "assets/gallery/village.jpg",
+    license: "CC0",
+    credit: "Olivier Miche",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Adelboden_village_landscape_(Unsplash).jpg",
+    approxLuminance: 76,
+  },
+  {
+    id: "waterfall",
+    title: "Wooded waterfall",
+    src: "assets/gallery/waterfall.jpg",
+    license: "CC0",
+    credit: "Nathan Anderson",
+    sourceUrl:
+      "https://commons.wikimedia.org/wiki/File:Waterfall_in_a_wooded_ravine_(Unsplash).jpg",
+    approxLuminance: 41,
   },
 ];
 
+/** Brightest curated image — preferred default for readable pieces. */
 export const DEFAULT_IMAGE_ID = "woods";
 
 /**
@@ -67,4 +89,16 @@ export function normalizeImageId(value) {
 export function getGalleryImage(value) {
   const id = normalizeImageId(value);
   return GALLERY.find((entry) => entry.id === id) ?? GALLERY[0];
+}
+
+/**
+ * Whether a gallery image is dim enough that piece interiors may be hard to read.
+ * @param {unknown} value gallery id or entry-like object with approxLuminance
+ * @returns {boolean}
+ */
+export function isLowVisibilityImage(value) {
+  if (value && typeof value === "object" && "approxLuminance" in value) {
+    return Number(value.approxLuminance) < LOW_VISIBILITY_LUMINANCE;
+  }
+  return getGalleryImage(value).approxLuminance < LOW_VISIBILITY_LUMINANCE;
 }

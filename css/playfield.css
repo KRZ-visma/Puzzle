@@ -154,9 +154,10 @@
   user-select: none;
   cursor: grab;
   border-radius: 0;
+  /* Quieter wash: lighter, flatter surface so dark piece silhouettes read clearly. */
   background:
-    linear-gradient(180deg, rgba(255, 250, 240, 0.35), rgba(126, 200, 232, 0.12)),
-    rgba(31, 58, 46, 0.06);
+    linear-gradient(180deg, rgba(255, 252, 245, 0.92), rgba(236, 244, 228, 0.55)),
+    #f3efe4;
 }
 
 .playfield:active {

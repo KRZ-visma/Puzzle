@@ -246,6 +246,16 @@
             <button
               type="button"
               class="gallery-option"
+              data-image-id="forest"
+              data-testid="gallery-option-forest"
+              aria-pressed="false"
+            >
+              <img src="assets/gallery/forest.jpg" alt="" />
+              <span class="gallery-option-title">Forest skyline</span>
+            </button>
+            <button
+              type="button"
+              class="gallery-option"
               data-image-id="village"
               data-testid="gallery-option-village"
               aria-pressed="false"
@@ -263,17 +273,14 @@
               <img src="assets/gallery/waterfall.jpg" alt="" />
               <span class="gallery-option-title">Wooded waterfall</span>
             </button>
-            <button
-              type="button"
-              class="gallery-option"
-              data-image-id="forest"
-              data-testid="gallery-option-forest"
-              aria-pressed="false"
-            >
-              <img src="assets/gallery/forest.jpg" alt="" />
-              <span class="gallery-option-title">Forest skyline</span>
-            </button>
           </div>
+          <p
+            class="gallery-visibility-note"
+            data-testid="gallery-visibility-note"
+            hidden
+          >
+            This image is quite dark — piece edges may be harder to see while you play.
+          </p>
         </div>
         <div
           class="piece-options"

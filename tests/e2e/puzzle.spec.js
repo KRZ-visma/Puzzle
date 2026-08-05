@@ -27,6 +27,19 @@ test.describe("Jigsaw playfield flows", () => {
     await expect(page.getByTestId("start-modal")).toBeVisible();
     await expect(page.getByTestId("gallery-options")).toBeVisible();
     await expect(page.getByTestId("gallery-option-woods")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("gallery-visibility-note")).toBeHidden();
+    await expect(page.getByTestId("gallery-option-woods").locator(".gallery-option-badge")).toHaveCount(0);
+    await expect(page.getByTestId("gallery-option-waterfall").locator(".gallery-option-badge")).toHaveText(/dim/i);
+    await expect(page.getByTestId("gallery-option-village").locator(".gallery-option-badge")).toHaveText(/dim/i);
+
+    await page.getByTestId("gallery-option-waterfall").click();
+    await expect(page.getByTestId("gallery-option-waterfall")).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByTestId("gallery-visibility-note")).toBeVisible();
+    await expect(page.getByTestId("gallery-visibility-note")).toContainText(/dark/i);
+
+    await page.getByTestId("gallery-option-woods").click();
+    await expect(page.getByTestId("gallery-visibility-note")).toBeHidden();
+
     await expect(page.getByTestId("piece-options")).toBeVisible();
     await expect(page.getByTestId("layout-options")).toBeVisible();
     await expect(page.getByTestId("layout-option-scatter")).toHaveAttribute("aria-pressed", "true");
