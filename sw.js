@@ -1,7 +1,7 @@
 /* Service worker — caches the app shell and applies updates when a new version is available. */
-/* CACHE_VERSION: 2026.07.28.17 */
+/* CACHE_VERSION: 2026.08.05.18 */
 
-const CACHE_VERSION = "2026.07.28.17";
+const CACHE_VERSION = "2026.08.05.18";
 const CACHE_NAME = `puzzle-${CACHE_VERSION}`;
 
 const SHELL = [
